@@ -37,3 +37,33 @@ export async function sendOffer(offer) {
   if (!res.ok) throw new Error('Failed to send offer')
   return res.json()
 }
+
+const S3_BASE = 'http://localhost:8083'
+
+export async function initUpload(gameData) {
+  const res = await fetch(`${API_BASE}/games/init-upload`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(gameData),
+  })
+  if (!res.ok) throw new Error('Failed to initiate upload')
+  return res.json()
+}
+
+export async function uploadToS3(url, file) {
+  // If URL is relative (starts with /), prepend S3_BASE
+  const finalUrl = url.startsWith('/') ? `${S3_BASE}${url}` : url
+  
+  const res = await fetch(finalUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+    },
+  })
+  if (!res.ok) throw new Error('Failed to upload file to storage')
+  return res
+}

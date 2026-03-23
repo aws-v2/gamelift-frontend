@@ -1,12 +1,14 @@
 let socket = null
 
-export function connectWebSocket(url = 'ws://localhost:8080/ws') {
+export function connectWebSocket(baseUrl = 'ws://localhost:8080/ws') {
   // Clean up any existing connection first
   if (socket) {
     try { socket.close(1000, 'reconnecting') } catch (_) {}
     socket = null
   }
 
+  const token = localStorage.getItem('token')
+  const url = token ? `${baseUrl}?token=${token}` : baseUrl
   socket = new WebSocket(url)
 
   socket.addEventListener('open', () => {

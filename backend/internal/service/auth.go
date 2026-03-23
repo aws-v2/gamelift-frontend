@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"backend/internal/config"
@@ -18,8 +19,14 @@ func NewAuthService(cfg *config.Config) *AuthServiceImpl {
 }
 
 func (s *AuthServiceImpl) GenerateToken(username string) (string, error) {
+	// Debug override for local testing without full auth service
+	if debugID := os.Getenv("DEBUG_USER_ID"); debugID != "" {
+		username = debugID
+	}
+
 	claims := jwt.MapClaims{
 		"username": username,
+		"userId":   username, // Explicitly provide both for compatibility
 		"exp":      time.Now().Add(24 * time.Hour).Unix(),
 		"iat":      time.Now().Unix(),
 	}

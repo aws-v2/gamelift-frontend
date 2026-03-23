@@ -18,9 +18,12 @@
         </svg>
         <span class="header-brand">Cloud Gaming</span>
       </div>
-      <button id="logout-button" class="logout-btn" @click="handleLogout">
-        Sign Out
-      </button>
+      <div class="header-right">
+        <router-link to="/register" class="action-btn">Register Game</router-link>
+        <button id="logout-button" class="logout-btn" @click="handleLogout">
+          Sign Out
+        </button>
+      </div>
     </header>
 
     <main class="home-content">
@@ -57,7 +60,7 @@
             </div>
           </div>
           <div class="game-card-info">
-            <h3 class="game-name">{{ game.name }}</h3>
+            <h3 class="game-name">{{ game.game_name }}</h3>
             <button
               :id="'play-btn-' + game.id"
               class="play-btn"
@@ -139,6 +142,31 @@ onMounted(loadGames)
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.3px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.action-btn {
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.action-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .logout-btn {
