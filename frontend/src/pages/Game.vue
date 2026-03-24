@@ -14,34 +14,10 @@
     </div>
 
     <div class="game-viewport">
-      <video
-        id="game-video"
-        ref="videoRef"
-        autoplay
-        playsinline
-        muted
-      ></video>
-      <button 
-        v-if="streamActive" 
-        class="audio-toggle-btn" 
-        @click="toggleAudio"
-      >
-        <svg v-if="isMuted" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <line x1="23" y1="9" x2="17" y2="15"></line>
-          <line x1="17" y1="9" x2="23" y2="15"></line>
-        </svg>
-        <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-        </svg>
-        {{ isMuted ? 'Unmute' : 'Mute' }}
-      </button>
-      <div v-if="!streamActive" class="game-overlay">
+      <div class="game-overlay">
         <div class="overlay-content">
-          <div class="overlay-spinner"></div>
-          <p>Waiting for stream...</p>
+          <p>State Synchronization Active</p>
+          <p class="sub-text">Check console for Godot state data</p>
         </div>
       </div>
     </div>
@@ -52,23 +28,12 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { connectWebSocket, sendMessage, disconnectWebSocket } from '../services/ws.js'
-import { startWebRTC, stopWebRTC } from '../services/webrtc.js'
 
 const route = useRoute()
 const router = useRouter()
-const videoRef = ref(null)
 const wsConnected = ref(false)
-const streamActive = ref(false)
-const isMuted = ref(true)
 
 let socket = null
-
-function toggleAudio() {
-  if (videoRef.value) {
-    videoRef.value.muted = !videoRef.value.muted
-    isMuted.value = videoRef.value.muted
-  }
-}
 
 function onKeyDown(e) {
   e.preventDefault()
@@ -109,9 +74,7 @@ function goBack() {
 
 // Centralized cleanup — called on unmount, page unload, and navigation
 function cleanup() {
-  stopWebRTC()
   disconnectWebSocket()
-  streamActive.value = false
   wsConnected.value = false
 }
 
@@ -137,14 +100,6 @@ onMounted(async () => {
   // Keyboard events
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
-
-  // WebRTC
-  try {
-    await startWebRTC(videoRef.value)
-    streamActive.value = true
-  } catch (err) {
-    console.error('WebRTC init failed:', err)
-  }
 })
 
 onBeforeUnmount(() => {
@@ -232,15 +187,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-#game-video {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  background: #000;
-}
-
 .game-overlay {
   position: absolute;
   inset: 0;
@@ -253,51 +199,15 @@ onBeforeUnmount(() => {
 
 .overlay-content {
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
-}
-
-.overlay-spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(124, 58, 237, 0.2);
-  border-top-color: #7c3aed;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  margin: 0 auto 16px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.audio-toggle-btn {
-  position: absolute;
-  bottom: 24px;
-  right: 24px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: rgba(10, 10, 15, 0.75);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  color: #fff;
-  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  z-index: 5;
 }
 
-.audio-toggle-btn:hover {
-  background: rgba(10, 10, 15, 0.9);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
-}
-
-.audio-toggle-btn:active {
-  transform: translateY(0);
+.sub-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 8px;
+  font-weight: 400;
 }
 </style>

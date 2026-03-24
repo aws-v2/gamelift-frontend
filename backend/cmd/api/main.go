@@ -127,8 +127,12 @@ func main() {
 		})
 	}
 
-	s3Listener := service.NewS3Listener(gameSvc, natsClient)
+	transcoder := service.NewTranscodeService()
+	s3Listener := service.NewS3Listener(gameSvc, natsClient, transcoder)
 	go s3Listener.Start()
+
+	gameStateListener := service.NewGameStateListener(natsClient, hub)
+	go gameStateListener.Start()
 
 	router := transport.NewRouter(authSvc, gameSvc, hub, natsClient)
 

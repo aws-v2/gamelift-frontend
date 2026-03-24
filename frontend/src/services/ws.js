@@ -23,6 +23,10 @@ export function connectWebSocket(baseUrl = 'ws://localhost:8080/ws') {
     console.error('[WS] Error:', err)
   })
 
+  socket.addEventListener('message', (event) => {
+    console.log('[GODOT STATE RECEIVED]', event.data)
+  })
+
   return socket
 }
 

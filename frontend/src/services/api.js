@@ -25,19 +25,6 @@ export async function fetchGames() {
   return res.json()
 }
 
-export async function sendOffer(offer) {
-  const res = await fetch(`${API_BASE}/offer`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify(offer),
-  })
-  if (!res.ok) throw new Error('Failed to send offer')
-  return res.json()
-}
-
 const S3_BASE = 'http://localhost:8083'
 
 export async function initUpload(gameData) {

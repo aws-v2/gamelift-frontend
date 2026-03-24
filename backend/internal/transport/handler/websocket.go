@@ -35,6 +35,10 @@ func NewHub() *Hub {
 	}
 }
 
+func (h *Hub) Broadcast(message []byte) {
+	h.broadcast <- message
+}
+
 func (h *Hub) Run() {
 	for {
 		select {
@@ -99,7 +103,10 @@ func (h *WebSocketHandler) readPump(c *Client) {
 		if err != nil {
 			break
 		}
-		log.Printf("[WS] Received message: %s", string(message))
+		
+		// Log every message received (Keyboard, Mouse, or Godot State)
+		log.Printf("[WS] Incoming: %s", string(message))
+		
 		h.hub.broadcast <- message
 	}
 }
