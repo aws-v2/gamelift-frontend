@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(authSvc interfaces.AuthService, gameSvc interfaces.GameRepository, sessionManager interfaces.SessionManager, sourceManager interfaces.SourceManager, natsClient *messaging.NatsClient) *gin.Engine {
+func NewRouter(authSvc interfaces.AuthService, gameSvc interfaces.GameRepository, hub *handler.Hub, natsClient *messaging.NatsClient) *gin.Engine {
 	r := gin.Default()
 
 	// Configure CORS
@@ -20,8 +20,7 @@ func NewRouter(authSvc interfaces.AuthService, gameSvc interfaces.GameRepository
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	gameHandler := handler.NewGameHandler(gameSvc, natsClient)
-	wsHandler := handler.NewWebSocketHandler(sessionManager)
-	rtcHandler := handler.NewWebRTCHandler(sessionManager, sourceManager)
+	wsHandler := handler.NewWebSocketHandler(hub)
 
 	r.POST("/login", authHandler.Login)
 	r.GET("/games", gameHandler.ListGames)
@@ -32,9 +31,10 @@ func NewRouter(authSvc interfaces.AuthService, gameSvc interfaces.GameRepository
 	{
 		protected.POST("/games/register", gameHandler.RegisterGame)
 		protected.POST("/games/init-upload", gameHandler.InitUpload)
-		protected.GET("/ws", wsHandler.Handle)
-		protected.POST("/offer", rtcHandler.HandleOffer)
 	}
+
+	// Public WebSocket for state-streaming
+	r.GET("/ws", wsHandler.Handle)
 
 	return r
 }

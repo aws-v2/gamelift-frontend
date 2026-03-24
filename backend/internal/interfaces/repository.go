@@ -17,15 +17,3 @@ type AuthService interface {
 	GenerateToken(username string) (string, error)
 	ValidateToken(tokenStr string) (map[string]interface{}, error)
 }
-
-// SessionManager defines the contract for managing user sessions.
-type SessionManager interface {
-	CreateSession(userID, gameID string) *domain.Session
-	GetSession(userID string) (*domain.Session, bool)
-	RemoveSession(userID string)
-}
-
-// SourceManager defines the contract for obtaining stream sources.
-type SourceManager interface {
-	GetSource(gameID int) (domain.StreamSource, error)
-}

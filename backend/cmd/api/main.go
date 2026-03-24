@@ -10,6 +10,7 @@ import (
 	"backend/internal/messaging"
 	"backend/internal/service"
 	"backend/internal/transport"
+	"backend/internal/transport/handler"
 	"backend/pkg/database"
 	"backend/pkg/logger"
 
@@ -107,8 +108,9 @@ func main() {
 
 	authSvc := service.NewAuthService(cfg.Config)
 	gameSvc := service.NewPostgresGameRepository(db)
-	sessionManager := service.NewSessionManager()
-	sourceManager := service.NewSourceManager(gameSvc)
+	
+	hub := handler.NewHub()
+	go hub.Run()
 
 	// Seed Demo Game if it's a fresh database
 	var count int64
@@ -125,11 +127,10 @@ func main() {
 		})
 	}
 
-	transcoder := service.NewTranscodeService()
-	s3Listener := service.NewS3Listener(gameSvc, natsClient, transcoder)
+	s3Listener := service.NewS3Listener(gameSvc, natsClient)
 	go s3Listener.Start()
 
-	router := transport.NewRouter(authSvc, gameSvc, sessionManager, sourceManager, natsClient)
+	router := transport.NewRouter(authSvc, gameSvc, hub, natsClient)
 
 	logr.Info("Listening on", zap.String("port", cfg.ServerPort))
 	if err := http.ListenAndServe(cfg.ServerPort, router); err != nil {

@@ -1,11 +1,10 @@
 package service
 
 import (
+	"backend/internal/config"
 	"fmt"
 	"os"
 	"time"
-
-	"backend/internal/config"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -31,6 +30,7 @@ func (s *AuthServiceImpl) GenerateToken(username string) (string, error) {
 		"iat":      time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	print("token:::", token)
 	return token.SignedString(s.secret)
 }
 

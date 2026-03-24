@@ -1,12 +1,9 @@
 package handler
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
-
-	"backend/internal/domain"
-	"backend/internal/interfaces"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -16,53 +13,109 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-type WebSocketHandler struct {
-	sessionManager interfaces.SessionManager
+type Client struct {
+	conn *websocket.Conn
+	send chan []byte
 }
 
-func NewWebSocketHandler(sm interfaces.SessionManager) *WebSocketHandler {
-	return &WebSocketHandler{sessionManager: sm}
+type Hub struct {
+	clients    map[*Client]bool
+	broadcast  chan []byte
+	register   chan *Client
+	unregister chan *Client
+	mu         sync.Mutex
+}
+
+func NewHub() *Hub {
+	return &Hub{
+		broadcast:  make(chan []byte),
+		register:   make(chan *Client),
+		unregister: make(chan *Client),
+		clients:    make(map[*Client]bool),
+	}
+}
+
+func (h *Hub) Run() {
+	for {
+		select {
+		case client := <-h.register:
+			h.mu.Lock()
+			h.clients[client] = true
+			h.mu.Unlock()
+			log.Printf("[Hub] New client connected. Total clients: %d", len(h.clients))
+		case client := <-h.unregister:
+			h.mu.Lock()
+			if _, ok := h.clients[client]; ok {
+				delete(h.clients, client)
+				close(client.send)
+				log.Printf("[Hub] Client disconnected. Total clients: %d", len(h.clients))
+			}
+			h.mu.Unlock()
+		case message := <-h.broadcast:
+			h.mu.Lock()
+			for client := range h.clients {
+				select {
+				case client.send <- message:
+				default:
+					close(client.send)
+					delete(h.clients, client)
+				}
+			}
+			h.mu.Unlock()
+		}
+	}
+}
+
+type WebSocketHandler struct {
+	hub *Hub
+}
+
+func NewWebSocketHandler(hub *Hub) *WebSocketHandler {
+	return &WebSocketHandler{hub: hub}
 }
 
 func (h *WebSocketHandler) Handle(c *gin.Context) {
-	userID := c.GetString(string(domain.UserIDKey))
-
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Printf("[WS] Upgrade error for %s: %v", userID, err)
+		log.Printf("[WS] Upgrade error: %v", err)
 		return
 	}
 
-	session := h.sessionManager.CreateSession(userID, "")
-	session.Conn = conn
+	client := &Client{conn: conn, send: make(chan []byte, 256)}
+	h.hub.register <- client
 
-	log.Printf("[WS] Client connected: %s", userID)
+	go h.writePump(client)
+	h.readPump(client)
+}
 
+func (h *WebSocketHandler) readPump(c *Client) {
 	defer func() {
-		h.sessionManager.RemoveSession(userID)
-		conn.Close()
-		log.Printf("[WS] Client disconnected: %s", userID)
+		h.hub.unregister <- c
+		c.conn.Close()
 	}()
 
 	for {
-		_, message, err := conn.ReadMessage()
+		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			log.Printf("[WS] Read error for %s: %v", userID, err)
 			break
 		}
+		log.Printf("[WS] Received message: %s", string(message))
+		h.hub.broadcast <- message
+	}
+}
 
-		var msg map[string]interface{}
-		if err := json.Unmarshal(message, &msg); err == nil {
-			msgType, _ := msg["type"].(string)
-			if msgType == "join" {
-				gameID, _ := msg["gameId"].(string)
-				session.GameID = gameID
-				log.Printf("[WS] User %s joined game %s", userID, gameID)
-			} else if session.Source != nil {
-				var inputEvent domain.InputEvent
-				json.Unmarshal(message, &inputEvent)
-				session.Source.HandleInput(inputEvent)
+func (h *WebSocketHandler) writePump(c *Client) {
+	defer func() {
+		c.conn.Close()
+	}()
+	for {
+		select {
+		case message, ok := <-c.send:
+			if !ok {
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
 			}
+			c.conn.WriteMessage(websocket.TextMessage, message)
 		}
 	}
 }
