@@ -24,7 +24,15 @@ export function connectWebSocket(baseUrl = 'ws://localhost:8080/ws') {
   })
 
   socket.addEventListener('message', (event) => {
-    console.log('[GODOT STATE RECEIVED]', event.data)
+    try {
+      const data = JSON.parse(event.data)
+      // Only log if it's actual game state from Godot (contains x or anim)
+      if (data.x !== undefined || data.anim !== undefined) {
+        console.log('[GODOT STATE RECEIVED]', data)
+      }
+    } catch (e) {
+      // Ignore non-JSON or other messages
+    }
   })
 
   return socket
