@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -44,50 +43,10 @@ func (m *MediaLoader) EnsureMedia() error {
 			return
 		}
 
-		// Convert video if needed
-		if _, err := os.Stat(m.ivfPath); err != nil {
-			log.Printf("[MediaLoader] Converting MP4 → IVF (VP8 video) via ffmpeg in %s…", m.baseDir)
-			cmd := exec.Command("ffmpeg",
-				"-y", // Overwrite output files
-				"-i", m.mp4Path,
-				"-c:v", "libvpx",
-				"-b:v", "2M",
-				"-an",
-				"-f", "ivf",
-				m.ivfPath,
-			)
-			cmd.Stderr = os.Stderr // Capture FFmpeg logs in terminal
-
-			if err := cmd.Run(); err != nil {
-				m.loadErr = fmt.Errorf("ffmpeg video conversion failed: %w", err)
-				return
-			}
-		}
-
-		// Convert audio if needed
-		if _, err := os.Stat(m.oggPath); err != nil {
-			log.Printf("[MediaLoader] Converting MP4 → OGG (Opus audio) via ffmpeg in %s…", m.baseDir)
-			cmd := exec.Command("ffmpeg",
-				"-y", // Overwrite output files
-				"-i", m.mp4Path,
-				"-vn",
-				"-c:a", "libopus",
-				"-b:a", "128k",
-				"-ar", "48000",
-				"-ac", "2",
-				m.oggPath,
-			)
-			cmd.Stderr = os.Stderr // Capture FFmpeg logs in terminal
-
-			if err := cmd.Run(); err != nil {
-				log.Printf("[MediaLoader] Audio conversion failed (perhaps no audio track?): %v. Continuing with video only.", err)
-				// Do not set m.loadErr here so we can still provide video
-			}
-		}
-
-		// Load video
+		// Load video (must already exist due to background transcoding)
 		m.VideoFile, m.loadErr = ivf.ReadFile(m.ivfPath)
 		if m.loadErr != nil {
+			m.loadErr = fmt.Errorf("failed to load IVF (has transcoding finished?): %w", m.loadErr)
 			return
 		}
 		log.Printf("[MediaLoader] Loaded video in %s: %d frames (%dx%d)",

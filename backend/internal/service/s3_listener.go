@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"backend/internal/domain"
@@ -14,12 +15,14 @@ import (
 type S3Listener struct {
 	gameRepo   interfaces.GameRepository
 	natsClient *messaging.NatsClient
+	transcoder *TranscodeService
 }
 
-func NewS3Listener(gameRepo interfaces.GameRepository, natsClient *messaging.NatsClient) *S3Listener {
+func NewS3Listener(gameRepo interfaces.GameRepository, natsClient *messaging.NatsClient, transcoder *TranscodeService) *S3Listener {
 	return &S3Listener{
 		gameRepo:   gameRepo,
 		natsClient: natsClient,
+		transcoder: transcoder,
 	}
 }
 
@@ -46,6 +49,17 @@ func (l *S3Listener) Start() {
 		}
 
 		if payload.Status == "success" {
+			// Construct local path (assuming backend has access to the same storage)
+			mp4Path := fmt.Sprintf("./uploads/games/%d/game.mp4", payload.GameID)
+
+			// 1. Transcode in background before activating
+			log.Printf("[S3Listener] Starting pre-processing for Game %d...", payload.GameID)
+			if err := l.transcoder.Transcode(mp4Path); err != nil {
+				log.Printf("[S3Listener] Pre-processing failed for Game %d: %v", payload.GameID, err)
+				return
+			}
+
+			// 2. Finalize game record
 			log.Printf("[S3Listener] Finalizing game %d with S3 ARN %s", payload.GameID, payload.StorageARN)
 			err := l.gameRepo.UpdateGameStatus(payload.GameID, domain.GameStatusActive, payload.StorageARN)
 			if err != nil {
