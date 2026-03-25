@@ -43,13 +43,15 @@ const loading = ref(true)
 
 let renderer, scene, camera
 let levelScene = null
-let textures = {}
+let playerMesh = null
 
-// Coordinates from Godot
-const targetState = { x: 0, y: 0, flip: false, anim: 'idling' }
-const currentState = { x: 0, y: 0 }
+// Movement Settings
+const MOVE_SPEED = 0.15
+const keysPressed = {}
 
-const SCALE_FACTOR = 0.1 
+// Coordinates and State
+const targetState = { x: 0, y: 0, z: 0, yaw: 0 }
+const currentState = { x: 0, y: 0, z: 0 }
 
 // --- Three.js Setup (Super Debug View) ---
 function initThree() {
@@ -60,12 +62,9 @@ function initThree() {
   const height = threeContainer.value.clientHeight || 600
   const aspect = width / height
   
-  console.log(`[DEBUG] Container Size: ${width}x${height}`)
-
-  // Perspective Camera for 3D - High Angle "Godot-esque" view
-  camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000)
-  camera.position.set(25, 20, 40) // Back and up
-  camera.lookAt(0, -5, 13) // Look at the middle of the platforms
+  // FPS Camera
+  camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000)
+  // We will parent this to the player mesh once loaded
   
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
   renderer.setSize(width, height)
@@ -103,6 +102,28 @@ function onWindowResize() {
   camera.aspect = width / height
   camera.updateProjectionMatrix()
   renderer.setSize(width, height)
+  if (camera) {
+    camera.aspect = width / height
+    camera.updateProjectionMatrix()
+  }
+}
+
+// --- FPS Controls ---
+function setupPointerLock() {
+  const container = threeContainer.value
+  container.addEventListener('click', () => {
+    container.requestPointerLock()
+  })
+
+  document.addEventListener('mousemove', (e) => {
+    if (document.pointerLockElement === container && playerMesh) {
+      // Rotate player (yaw)
+      playerMesh.rotation.y -= e.movementX * 0.002
+      // Rotate camera (pitch) - limited to avoid backflips
+      camera.rotation.x -= e.movementY * 0.002
+      camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x))
+    }
+  })
 }
 
 // --- Asset Loading ---
@@ -112,17 +133,30 @@ async function loadAssets() {
   try {
     const modelPath = '/game_static/temporary_level.gltf'
     levelScene = await assetLoader.loadModel(modelPath)
-    
-    // Auto-fix missing materials/textures
     assetLoader.applyFallbacks(levelScene)
     
-    // THE LEVEL IS ALREADY POSITIONED CORRECTLY IN COORDS
-    // Platform6 is at (0, -5, 0)
-    // Platform7 is at (0, -5, 26)
-    // Bridges are at (0, 0, 10.5 etc)
+    // FIND THE PLAYER in the nested scene
+    playerMesh = levelScene.getObjectByName('CharacterBody3D')
+    
+    if (playerMesh) {
+      console.log('[DEBUG] Found player character:', playerMesh.name)
+      
+      // ATTACH CAMERA to player's face
+      // Godot export says Camera3D is at y=0.78 relative to parent
+      camera.position.set(0, 0.8, 0) 
+      playerMesh.add(camera)
+      
+      // Ensure player rotation is preserved
+      playerMesh.rotation.order = 'YXZ'
+      camera.rotation.order = 'YXZ'
+    } else {
+      console.warn('[DEBUG] CharacterBody3D not found in level!')
+    }
     
     scene.add(levelScene)
-    console.log('[DEBUG] Level model added to scene at world origin.')
+    console.log('[DEBUG] Level model added to scene.')
+    
+    setupPointerLock()
     
   } catch (err) {
     console.error('[DEBUG] Asset Loader error:', err)
@@ -133,11 +167,21 @@ async function loadAssets() {
 function tick() {
   requestAnimationFrame(tick)
   
-  if (levelScene) {
-    // RESET model to origin for Phase 2 verification
-    levelScene.position.set(0, 0, 0)
-    
-    // In Phase 3, we will map the player mesh, not the whole level
+  if (playerMesh && document.pointerLockElement) {
+    // LOCAL MOVEMENT (for testing Phase 1 bootstrapping)
+    const direction = new THREE.Vector3()
+    const frontVector = new THREE.Vector3(0, 0, -1).applyQuaternion(playerMesh.quaternion)
+    const sideVector = new THREE.Vector3(1, 0, 0).applyQuaternion(playerMesh.quaternion)
+
+    if (keysPressed['w'] || keysPressed['ArrowUp']) direction.add(frontVector)
+    if (keysPressed['s'] || keysPressed['ArrowDown']) direction.add(frontVector.negate())
+    if (keysPressed['a'] || keysPressed['ArrowLeft']) direction.add(sideVector.negate())
+    if (keysPressed['d'] || keysPressed['ArrowRight']) direction.add(sideVector)
+
+    if (direction.length() > 0) {
+      direction.normalize().multiplyScalar(MOVE_SPEED)
+      playerMesh.position.add(direction)
+    }
   }
   
   if (renderer && scene && camera) {
@@ -156,8 +200,15 @@ function handleServerMessage(event) {
   } catch (err) {}
 }
 
-const onKeyDown = (e) => { e.preventDefault(); sendMessage({ type: 'keydown', key: e.key }) }
-const onKeyUp = (e) => { e.preventDefault(); sendMessage({ type: 'keyup', key: e.key }) }
+// --- Input Handling ---
+const onKeyDown = (e) => { 
+  keysPressed[e.key.toLowerCase()] = true
+  sendMessage({ type: 'keydown', key: e.key }) 
+}
+const onKeyUp = (e) => { 
+  keysPressed[e.key.toLowerCase()] = false
+  sendMessage({ type: 'keyup', key: e.key }) 
+}
 
 function goBack() { cleanup(); router.push('/home') }
 
