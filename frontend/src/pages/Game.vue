@@ -2,8 +2,9 @@
   <div class="game-page" @mousedown="onMouseDown" @mouseup="onMouseUp">
     <div class="game-topbar">
       <button id="back-button" class="back-btn" @click="goBack">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6" />
         </svg>
         Back
       </button>
@@ -15,7 +16,7 @@
 
     <div class="game-viewport">
       <div ref="threeContainer" class="three-container"></div>
-      
+
       <!-- Overlay (forced off after 2s for debug) -->
       <div v-if="loading" class="game-overlay">
         <div class="overlay-content">
@@ -57,15 +58,15 @@ const currentState = { x: 0, y: 0, z: 0 }
 function initThree() {
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0x050510)
-  
+
   const width = threeContainer.value.clientWidth || 800
   const height = threeContainer.value.clientHeight || 600
   const aspect = width / height
-  
+
   // FPS Camera
   camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000)
   // We will parent this to the player mesh once loaded
-  
+
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
   renderer.setSize(width, height)
   renderer.setPixelRatio(window.devicePixelRatio)
@@ -75,7 +76,7 @@ function initThree() {
   // LIGHTING
   const ambient = new THREE.AmbientLight(0xffffff, 0.8)
   scene.add(ambient)
-  
+
   const sun = new THREE.DirectionalLight(0xffffff, 1.2)
   sun.position.set(10, 20, 10)
   scene.add(sun)
@@ -121,7 +122,7 @@ function setupPointerLock() {
       playerMesh.rotation.y -= e.movementX * 0.002
       // Rotate camera (pitch) - limited to avoid backflips
       camera.rotation.x -= e.movementY * 0.002
-      camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x))
+      camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x))
     }
   })
 }
@@ -134,30 +135,30 @@ async function loadAssets() {
     const modelPath = '/game_static/temporary_level.gltf'
     levelScene = await assetLoader.loadModel(modelPath)
     assetLoader.applyFallbacks(levelScene)
-    
+
     // FIND THE PLAYER in the nested scene
     playerMesh = levelScene.getObjectByName('CharacterBody3D')
-    
+
     if (playerMesh) {
       console.log('[DEBUG] Found player character:', playerMesh.name)
-      
+
       // ATTACH CAMERA to player's face
       // Godot export says Camera3D is at y=0.78 relative to parent
-      camera.position.set(0, 0.8, 0) 
+      camera.position.set(0, 0.8, 0)
       playerMesh.add(camera)
-      
+
       // Ensure player rotation is preserved
       playerMesh.rotation.order = 'YXZ'
       camera.rotation.order = 'YXZ'
     } else {
       console.warn('[DEBUG] CharacterBody3D not found in level!')
     }
-    
+
     scene.add(levelScene)
     console.log('[DEBUG] Level model added to scene.')
-    
+
     setupPointerLock()
-    
+
   } catch (err) {
     console.error('[DEBUG] Asset Loader error:', err)
   }
@@ -166,12 +167,20 @@ async function loadAssets() {
 // --- Game Loop ---
 function tick() {
   requestAnimationFrame(tick)
-  
-  if (playerMesh && document.pointerLockElement) {
-    // LOCAL MOVEMENT (for testing Phase 1 bootstrapping)
+
+  if (playerMesh) {
+    // LOCAL MOVEMENT (Now works even without Pointer Lock for easier testing)
     const direction = new THREE.Vector3()
+
+    // Get forward/side vectors relative to player rotation
     const frontVector = new THREE.Vector3(0, 0, -1).applyQuaternion(playerMesh.quaternion)
     const sideVector = new THREE.Vector3(1, 0, 0).applyQuaternion(playerMesh.quaternion)
+
+    // Zero out Y for ground movement
+    frontVector.y = 0
+    sideVector.y = 0
+    frontVector.normalize()
+    sideVector.normalize()
 
     if (keysPressed['w'] || keysPressed['ArrowUp']) direction.add(frontVector)
     if (keysPressed['s'] || keysPressed['ArrowDown']) direction.add(frontVector.negate())
@@ -183,7 +192,7 @@ function tick() {
       playerMesh.position.add(direction)
     }
   }
-  
+
   if (renderer && scene && camera) {
     renderer.render(scene, camera)
   }
@@ -197,17 +206,23 @@ function handleServerMessage(event) {
     if (typeof data.y === 'number') targetState.y = data.y
     if (typeof data.flip === 'boolean') targetState.flip = data.flip
     if (typeof data.anim === 'string') targetState.anim = data.anim
-  } catch (err) {}
+  } catch (err) { }
 }
 
 // --- Input Handling ---
-const onKeyDown = (e) => { 
-  keysPressed[e.key.toLowerCase()] = true
-  sendMessage({ type: 'keydown', key: e.key }) 
+const onKeyDown = (e) => {
+  const key = e.key.toLowerCase()
+  if (!keysPressed[key]) {
+    console.debug(`[DEBUG] Key Down: ${key}`)
+    keysPressed[key] = true
+  }
+  sendMessage({ type: 'keydown', key: e.key })
 }
-const onKeyUp = (e) => { 
-  keysPressed[e.key.toLowerCase()] = false
-  sendMessage({ type: 'keyup', key: e.key }) 
+const onKeyUp = (e) => {
+  const key = e.key.toLowerCase()
+  console.debug(`[DEBUG] Key Up: ${key}`)
+  keysPressed[key] = false
+  sendMessage({ type: 'keyup', key: e.key })
 }
 
 function goBack() { cleanup(); router.push('/home') }
@@ -225,9 +240,9 @@ onMounted(async () => {
   window.addEventListener('keyup', onKeyUp)
 
   initThree()
-  
+
   // FORCE OVERLAY OFF after 2 seconds
-  setTimeout(() => { 
+  setTimeout(() => {
     if (loading.value) { console.warn('[DEBUG] Forcing loading overlay OFF'); loading.value = false }
   }, 2000)
 
@@ -252,14 +267,81 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.game-page { height: 100vh; background: #000; overflow: hidden; display: flex; flex-direction: column; cursor: none; }
-.game-topbar { padding: 12px 20px; background: #111; display: flex; align-items: center; justify-content: space-between; z-index: 10; }
-.back-btn { background: #333; color: #fff; padding: 5px 15px; border-radius: 5px; cursor: pointer; border: none; }
-.game-viewport { flex: 1; position: relative; }
-.three-container { width: 100%; height: 100%; background: #000; }
-.game-status { color: #fff; font-size: 12px; }
-.game-overlay { position: absolute; inset: 0; background: #000; z-index: 20; display: flex; align-items: center; justify-content: center; color: #fff; }
-.overlay-content { text-align: center; }
-.overlay-spinner { width: 40px; height: 40px; border: 3px solid #7c3aed; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.game-page {
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: none;
+}
+
+.game-topbar {
+  padding: 12px 20px;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+
+.back-btn {
+  background: #333;
+  color: #fff;
+  padding: 5px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: none;
+}
+
+.game-viewport {
+  flex: 1;
+  position: relative;
+}
+
+.three-container {
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.game-status {
+  color: #fff;
+  font-size: 12px;
+}
+
+.game-overlay {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.overlay-content {
+  text-align: center;
+}
+
+.overlay-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #7c3aed;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
 </style>
