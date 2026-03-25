@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dk07vdl5i1sal"
-path="res://.godot/imported/level_1.gltf-d0a7b2050fae0488f25be0db6059c71e.scn"
+uid="uid://c4otqiqx0mn6k"
+path="res://.godot/imported/temporary_level.gltf-738190cf6694d61abd18ef97ae69d412.scn"
 
 [deps]
 
-source_file="res://game_static/level_1.gltf"
-dest_files=["res://.godot/imported/level_1.gltf-d0a7b2050fae0488f25be0db6059c71e.scn"]
+source_file="res://temporary_level.gltf"
+dest_files=["res://.godot/imported/temporary_level.gltf-738190cf6694d61abd18ef97ae69d412.scn"]
 
 [params]
 

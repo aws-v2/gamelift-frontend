@@ -1,5 +1,5 @@
 <template>
-  <div class="game-page" @mousemove="onMouseMove" @mousedown="onMouseDown" @mouseup="onMouseUp">
+  <div class="game-page" @mousedown="onMouseDown" @mouseup="onMouseUp">
     <div class="game-topbar">
       <button id="back-button" class="back-btn" @click="goBack">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -16,11 +16,12 @@
     <div class="game-viewport">
       <div ref="threeContainer" class="three-container"></div>
       
-      <!-- Fallback / Loading Overlay -->
+      <!-- Overlay (forced off after 2s for debug) -->
       <div v-if="loading" class="game-overlay">
         <div class="overlay-content">
           <div class="overlay-spinner"></div>
-          <p>Loading Three.js Assets...</p>
+          <p>Connecting & Loading Assets...</p>
+          <p style="font-size: 10px; color: #666; margin-top: 10px;">[DEBUG] Loading timeout active</p>
         </div>
       </div>
     </div>
@@ -32,7 +33,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { connectWebSocket, sendMessage, disconnectWebSocket } from '../services/ws.js'
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { assetLoader } from '../services/three/loader.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,50 +41,56 @@ const threeContainer = ref(null)
 const wsConnected = ref(false)
 const loading = ref(true)
 
-let socket = null
-let renderer, scene, camera, mixer
-let playerModel = null
-let animationActions = {}
-let currentAction = null
+let renderer, scene, camera
+let levelScene = null
+let textures = {}
 
-// Server State Interpolation
-const targetState = {
-  x: 0,
-  y: 0,
-  flip: false,
-  anim: 'idling'
-}
+// Coordinates from Godot
+const targetState = { x: 0, y: 0, flip: false, anim: 'idling' }
+const currentState = { x: 0, y: 0 }
 
-const currentState = {
-  x: 0,
-  y: 0,
-}
+const SCALE_FACTOR = 0.1 
 
-const SCALE_FACTOR = 0.01 // Map Godot pixels to Three.js units
-
-// --- Three.js Setup ---
+// --- Three.js Setup (Super Debug View) ---
 function initThree() {
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x0a0a0f)
+  scene.background = new THREE.Color(0x050510)
   
-  const width = threeContainer.value.clientWidth
-  const height = threeContainer.value.clientHeight
+  const width = threeContainer.value.clientWidth || 800
+  const height = threeContainer.value.clientHeight || 600
+  const aspect = width / height
   
-  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
-  camera.position.set(0, 0, 10)
+  console.log(`[DEBUG] Container Size: ${width}x${height}`)
+
+  // Perspective Camera for 3D - High Angle "Godot-esque" view
+  camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000)
+  camera.position.set(25, 20, 40) // Back and up
+  camera.lookAt(0, -5, 13) // Look at the middle of the platforms
   
-  renderer = new THREE.WebGLRenderer({ antialias: true })
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
   renderer.setSize(width, height)
   renderer.setPixelRatio(window.devicePixelRatio)
+  renderer.outputColorSpace = THREE.SRGBColorSpace
   threeContainer.value.appendChild(renderer.domElement)
+
+  // LIGHTING
+  const ambient = new THREE.AmbientLight(0xffffff, 0.8)
+  scene.add(ambient)
   
-  // Lighting
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)
-  scene.add(ambientLight)
-  
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2)
-  directionalLight.position.set(5, 10, 7)
-  scene.add(directionalLight)
+  const sun = new THREE.DirectionalLight(0xffffff, 1.2)
+  sun.position.set(10, 20, 10)
+  scene.add(sun)
+
+  // CENTER MARKER (Bright Red Square at 0,0,0) - Helpful for orientation
+  const centerGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5)
+  const centerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 })
+  const centerMarker = new THREE.Mesh(centerGeo, centerMat)
+  scene.add(centerMarker)
+
+  // GRID for ground plane (XZ)
+  const grid = new THREE.GridHelper(100, 20, 0x444444, 0x222222)
+  grid.position.y = -5.1 // Just below the platforms
+  scene.add(grid)
 
   window.addEventListener('resize', onWindowResize)
 }
@@ -92,6 +99,7 @@ function onWindowResize() {
   if (!camera || !renderer || !threeContainer.value) return
   const width = threeContainer.value.clientWidth
   const height = threeContainer.value.clientHeight
+  const aspect = width / height
   camera.aspect = width / height
   camera.updateProjectionMatrix()
   renderer.setSize(width, height)
@@ -99,135 +107,64 @@ function onWindowResize() {
 
 // --- Asset Loading ---
 async function loadAssets() {
-  const loader = new GLTFLoader()
-  
+  console.log('[DEBUG] Loading 3D level model...')
+
   try {
-    // Load Level/Environment
-    const levelGltf = await loader.loadAsync('/game_static/level_1.gltf')
-    scene.add(levelGltf.scene)
+    const modelPath = '/game_static/temporary_level.gltf'
+    levelScene = await assetLoader.loadModel(modelPath)
     
-    // Load Player
-    const playerGltf = await loader.loadAsync('/game_static/player.gltf')
-    playerModel = playerGltf.scene
-    scene.add(playerModel)
+    // Auto-fix missing materials/textures
+    assetLoader.applyFallbacks(levelScene)
     
-    // Setup Animations
-    mixer = new THREE.AnimationMixer(playerModel)
-    playerGltf.animations.forEach((clip) => {
-      animationActions[clip.name] = mixer.clipAction(clip)
-    })
+    // THE LEVEL IS ALREADY POSITIONED CORRECTLY IN COORDS
+    // Platform6 is at (0, -5, 0)
+    // Platform7 is at (0, -5, 26)
+    // Bridges are at (0, 0, 10.5 etc)
     
-    // Start default animation
-    if (animationActions['idling']) {
-      currentAction = animationActions['idling']
-      currentAction.play()
-    }
+    scene.add(levelScene)
+    console.log('[DEBUG] Level model added to scene at world origin.')
     
-    loading.value = false
   } catch (err) {
-    console.error('Failed to load assets:', err)
+    console.error('[DEBUG] Asset Loader error:', err)
   }
 }
 
 // --- Game Loop ---
-const clock = new THREE.Clock()
-
 function tick() {
   requestAnimationFrame(tick)
   
-  const delta = clock.getDelta()
-  if (mixer) mixer.update(delta)
-  
-  if (playerModel) {
-    // Smooth Interpolation (Lerp)
-    currentState.x += (targetState.x - currentState.x) * 0.15
-    currentState.y += (targetState.y - currentState.y) * 0.15
+  if (levelScene) {
+    // RESET model to origin for Phase 2 verification
+    levelScene.position.set(0, 0, 0)
     
-    // Update model position (Map Godot Y to Three.js -Y if it's 2D screen coordinates)
-    playerModel.position.x = currentState.x * SCALE_FACTOR
-    playerModel.position.y = -currentState.y * SCALE_FACTOR // Negative to flip Y if Godot is screen-space
-    
-    // Update Rotation based on Flip
-    const targetRot = targetState.flip ? Math.PI : 0
-    playerModel.rotation.y += (targetRot - playerModel.rotation.y) * 0.2
-    
-    // Update Animations
-    if (targetState.anim && animationActions[targetState.anim] && currentAction !== animationActions[targetState.anim]) {
-      const nextAction = animationActions[targetState.anim]
-      if (currentAction) currentAction.fadeOut(0.2)
-      nextAction.reset().fadeIn(0.2).play()
-      currentAction = nextAction
-    }
-    
-    // Follow Camera
-    camera.position.x += (playerModel.position.x - camera.position.x) * 0.05
-    camera.position.y += (playerModel.position.y - camera.position.y) * 0.05
+    // In Phase 3, we will map the player mesh, not the whole level
   }
   
-  renderer.render(scene, camera)
+  if (renderer && scene && camera) {
+    renderer.render(scene, camera)
+  }
 }
 
 // --- WebSocket Handling ---
 function handleServerMessage(event) {
   try {
     const data = JSON.parse(event.data)
-    
-    // Update target state for the next frame
     if (typeof data.x === 'number') targetState.x = data.x
     if (typeof data.y === 'number') targetState.y = data.y
     if (typeof data.flip === 'boolean') targetState.flip = data.flip
     if (typeof data.anim === 'string') targetState.anim = data.anim
-    
-  } catch (err) {
-    // Possibly binary data or malformed JSON
-  }
+  } catch (err) {}
 }
 
-// --- Input Overrides ---
-function onKeyDown(e) {
-  e.preventDefault()
-  sendMessage({ type: 'keydown', key: e.key })
-}
+const onKeyDown = (e) => { e.preventDefault(); sendMessage({ type: 'keydown', key: e.key }) }
+const onKeyUp = (e) => { e.preventDefault(); sendMessage({ type: 'keyup', key: e.key }) }
 
-function onKeyUp(e) {
-  e.preventDefault()
-  sendMessage({ type: 'keyup', key: e.key })
-}
-
-function onMouseMove(e) {
-  sendMessage({
-    type: 'mousemove',
-    x: e.clientX,
-    y: e.clientY,
-  })
-}
-
-function onMouseDown(e) {
-  sendMessage({
-    type: 'mousedown',
-    button: e.button,
-  })
-}
-
-function onMouseUp(e) {
-  sendMessage({
-    type: 'mouseup',
-    button: e.button,
-  })
-}
-
-function goBack() {
-  cleanup()
-  router.push('/home')
-}
+function goBack() { cleanup(); router.push('/home') }
 
 function cleanup() {
   disconnectWebSocket()
   wsConnected.value = false
-  if (renderer) {
-    renderer.dispose()
-    renderer.forceContextLoss()
-  }
+  if (renderer) { renderer.dispose(); renderer.forceContextLoss() }
   window.removeEventListener('resize', onWindowResize)
 }
 
@@ -236,20 +173,22 @@ onMounted(async () => {
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
 
-  // Initialize Three.js
   initThree()
+  
+  // FORCE OVERLAY OFF after 2 seconds
+  setTimeout(() => { 
+    if (loading.value) { console.warn('[DEBUG] Forcing loading overlay OFF'); loading.value = false }
+  }, 2000)
+
   await loadAssets()
   tick()
 
-  // WebSocket
-  socket = connectWebSocket()
+  const socket = connectWebSocket()
   socket.addEventListener('open', () => {
     wsConnected.value = true
     sendMessage({ type: 'join', gameId: route.params.id })
   })
-  socket.addEventListener('close', () => {
-    wsConnected.value = false
-  })
+  socket.addEventListener('close', () => { wsConnected.value = false })
   socket.addEventListener('message', handleServerMessage)
 })
 
@@ -262,105 +201,14 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.game-page {
-  height: 100vh;
-  background: #000;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  cursor: none; /* Hide cursor for better game feel */
-}
-
-.game-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  background: rgba(10, 10, 15, 0.9);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  z-index: 10;
-  flex-shrink: 0;
-}
-
-.back-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.back-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.game-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #f87171;
-  transition: background 0.3s;
-}
-
-.status-dot.connected {
-  background: #34d399;
-  box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
-}
-
-.game-viewport {
-  flex: 1;
-  position: relative;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.three-container {
-  width: 100%;
-  height: 100%;
-  outline: none;
-}
-
-.game-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #0a0a0f;
-  z-index: 20;
-}
-
-.overlay-content {
-  text-align: center;
-  color: #fff;
-}
-
-.overlay-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(124, 58, 237, 0.1);
-  border-top-color: #7c3aed;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 20px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+.game-page { height: 100vh; background: #000; overflow: hidden; display: flex; flex-direction: column; cursor: none; }
+.game-topbar { padding: 12px 20px; background: #111; display: flex; align-items: center; justify-content: space-between; z-index: 10; }
+.back-btn { background: #333; color: #fff; padding: 5px 15px; border-radius: 5px; cursor: pointer; border: none; }
+.game-viewport { flex: 1; position: relative; }
+.three-container { width: 100%; height: 100%; background: #000; }
+.game-status { color: #fff; font-size: 12px; }
+.game-overlay { position: absolute; inset: 0; background: #000; z-index: 20; display: flex; align-items: center; justify-content: center; color: #fff; }
+.overlay-content { text-align: center; }
+.overlay-spinner { width: 40px; height: 40px; border: 3px solid #7c3aed; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
