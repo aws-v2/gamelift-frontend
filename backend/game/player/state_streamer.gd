@@ -25,7 +25,8 @@ func _process(delta):
 	if state == WebSocketPeer.STATE_OPEN:
 		while socket.get_available_packet_count():
 			var packet = socket.get_packet()
-			print("[StateStreamer] Received from server: ", packet.get_string_from_utf8())
+			var msg = packet.get_string_from_utf8()
+			_handle_incoming_message(msg)
 		
 		# Send player state at 20Hz
 		last_update_time += delta
@@ -40,6 +41,52 @@ func _process(delta):
 		var reason = socket.get_close_reason()
 		print("[StateStreamer] WebSocket closed with code: %d, reason %s. Reconnecting..." % [code, reason])
 		socket.connect_to_url(url)
+
+# --- INPUT RELAY LOGIC ---
+
+func _handle_incoming_message(json_string: String):
+	var json = JSON.new()
+	var error = json.parse(json_string)
+	if error != OK:
+		return
+		
+	var data = json.get_data()
+	if typeof(data) != TYPE_DICTIONARY:
+		return
+		
+	var type = data.get("type", "")
+	var key = data.get("key", "")
+	
+	if type == "keydown":
+		_process_key_event(key, true)
+	elif type == "keyup":
+		_process_key_event(key, false)
+
+func _process_key_event(key: String, is_pressed: bool):
+	var action = _map_key_to_action(key)
+	if action != "":
+		if is_pressed:
+			Input.action_press(action)
+			print("[StateStreamer] Action Pressed: ", action, " (Key: ", key, ")")
+		else:
+			Input.action_release(action)
+			print("[StateStreamer] Action Released: ", action, " (Key: ", key, ")")
+
+func _map_key_to_action(key: String) -> String:
+	match key.to_lower():
+		"w", "arrowup":
+			return "move_forward"
+		"s", "arrowdown":
+			return "move_back"
+		"a", "arrowleft":
+			return "move_left"
+		"d", "arrowright":
+			return "move_right"
+		" ": # Space
+			return "jump_up"
+		"f", "enter":
+			return "shoot"
+	return ""
 
 func send_player_state():
 	if not player:
