@@ -51,7 +51,7 @@ const MOVE_SPEED = 0.15
 const keysPressed = {}
 
 // Coordinates and State
-const targetState = { x: 0, y: 0, z: 0, yaw: 0 }
+const targetState = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 }
 const currentState = { x: 0, y: 0, z: 0 }
 
 // --- Three.js Setup (Super Debug View) ---
@@ -141,13 +141,19 @@ async function loadAssets() {
 
     if (playerMesh) {
       console.log('[DEBUG] Found player character:', playerMesh.name)
-
+      
+      // SYNC INITIAL STATE with GLTF Spawn Point
+      targetState.x = playerMesh.position.x
+      targetState.y = playerMesh.position.y
+      targetState.z = playerMesh.position.z
+      targetState.yaw = playerMesh.rotation.y
+      targetState.pitch = 0
+      
       // ATTACH CAMERA to player's face
-      // Godot export says Camera3D is at y=0.78 relative to parent
-      camera.position.set(0, 0.8, 0)
+      camera.position.set(0, 0.8, 0) 
       playerMesh.add(camera)
-
-      // Ensure player rotation is preserved
+      
+      // Ensure rotation order is correct for FPS
       playerMesh.rotation.order = 'YXZ'
       camera.rotation.order = 'YXZ'
     } else {
@@ -169,28 +175,14 @@ function tick() {
   requestAnimationFrame(tick)
 
   if (playerMesh) {
-    // LOCAL MOVEMENT (Now works even without Pointer Lock for easier testing)
-    const direction = new THREE.Vector3()
+    // STATE INTERPOLATION (Real-time Sync)
+    playerMesh.position.x += (targetState.x - playerMesh.position.x) * 0.2
+    playerMesh.position.y += (targetState.y - playerMesh.position.y) * 0.2
+    playerMesh.position.z += (targetState.z - playerMesh.position.z) * 0.2
 
-    // Get forward/side vectors relative to player rotation
-    const frontVector = new THREE.Vector3(0, 0, -1).applyQuaternion(playerMesh.quaternion)
-    const sideVector = new THREE.Vector3(1, 0, 0).applyQuaternion(playerMesh.quaternion)
-
-    // Zero out Y for ground movement
-    frontVector.y = 0
-    sideVector.y = 0
-    frontVector.normalize()
-    sideVector.normalize()
-
-    if (keysPressed['w'] || keysPressed['ArrowUp']) direction.add(frontVector)
-    if (keysPressed['s'] || keysPressed['ArrowDown']) direction.add(frontVector.negate())
-    if (keysPressed['a'] || keysPressed['ArrowLeft']) direction.add(sideVector.negate())
-    if (keysPressed['d'] || keysPressed['ArrowRight']) direction.add(sideVector)
-
-    if (direction.length() > 0) {
-      direction.normalize().multiplyScalar(MOVE_SPEED)
-      playerMesh.position.add(direction)
-    }
+    // Rotation Sync (Yaw for Body, Pitch for Head)
+    playerMesh.rotation.y += (targetState.yaw - playerMesh.rotation.y) * 0.2
+    camera.rotation.x += (targetState.pitch - camera.rotation.x) * 0.2
   }
 
   if (renderer && scene && camera) {
@@ -202,11 +194,20 @@ function tick() {
 function handleServerMessage(event) {
   try {
     const data = JSON.parse(event.data)
+
+    // Sync all 3D coordinates
     if (typeof data.x === 'number') targetState.x = data.x
     if (typeof data.y === 'number') targetState.y = data.y
-    if (typeof data.flip === 'boolean') targetState.flip = data.flip
+    if (typeof data.z === 'number') targetState.z = data.z
+
+    // Sync rotations
+    if (typeof data.yaw === 'number') targetState.yaw = data.yaw
+    if (typeof data.pitch === 'number') targetState.pitch = data.pitch
+
     if (typeof data.anim === 'string') targetState.anim = data.anim
-  } catch (err) { }
+  } catch (err) {
+    console.warn('[DEBUG] Error parsing server message:', err)
+  }
 }
 
 // --- Input Handling ---
