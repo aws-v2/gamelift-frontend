@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://dmwqjkeup4sg8"]
+
+[ext_resource type="PackedScene" uid="uid://13h03r1gx5th" path="res://player/simple_gun/gun_model.glb" id="1_4flbx"]
+[ext_resource type="Script" uid="uid://cdi4cc5a78i3q" path="res://player.gd" id="1_onrkg"]
+[ext_resource type="Texture2D" uid="uid://b3imm47ss83ru" path="res://player/reticle.png" id="3_i3pqv"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_sh265"]
+height = 2.0273438
+
+[node name="Player" type="CharacterBody3D" unique_id=1649980653]
+script = ExtResource("1_onrkg")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1786961551]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0049328804, 1.0085315, -0.024935246)
+shape = SubResource("CapsuleShape3D_sh265")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=341893630]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00038814545, 1.6652268, 0)
+
+[node name="gun_model" parent="Camera3D" unique_id=11879560 instance=ExtResource("1_4flbx")]
+transform = Transform3D(-0.6652596, 0, 0.21351555, -0.010040119, 0.47091526, -0.05863052, -0.15563819, -0.030378444, -0.90886843, 1.086871, -0.7030705, -1.4135191)
+
+[node name="Marker3D" type="Marker3D" parent="Camera3D" unique_id=1038501014]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.251582, -0.73441327, -1.8815686)
+
+[node name="Reticle" type="TextureRect" parent="." unique_id=55191710]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -17.5
+offset_top = -17.5
+offset_right = 17.5
+offset_bottom = 17.5
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_i3pqv")
+expand_mode = 1
+
+[node name="Timer" type="Timer" parent="." unique_id=205769951]
+unique_name_in_owner = true
+wait_time = 0.2
+one_shot = true

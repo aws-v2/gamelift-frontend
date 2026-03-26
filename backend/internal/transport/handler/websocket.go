@@ -101,12 +101,15 @@ func (h *WebSocketHandler) readPump(c *Client) {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
+			log.Printf("[WS][ReadPump] Error reading message from client %p: %v", c, err)
 			break
 		}
 		
 		// Log every message received (Keyboard, Mouse, or Godot State)
-		log.Printf("[WS] Incoming: %s", string(message))
+		log.Printf("[WS][Incoming] Message from client %p: %s", c, string(message))
 		
+		// Log the data being sent to the hub for transparency
+		log.Printf("[WS][Outgoing] Broadcasting message from client %p to hub: %s", c, string(message))
 		h.hub.broadcast <- message
 	}
 }
