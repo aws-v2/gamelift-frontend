@@ -48,9 +48,16 @@ export async function uploadToS3(url, file) {
     method: 'PUT',
     body: file,
     headers: {
-      'Content-Type': file.type || 'application/octet-stream',
+      'Content-Type': 'application/zip',
     },
   })
   if (!res.ok) throw new Error('Failed to upload file to storage')
   return res
+}
+export async function fetchGameManifest(gameId) {
+  const res = await fetch(`${API_BASE}/games/${gameId}/manifest`, {
+    headers: { ...getAuthHeaders() },
+  })
+  if (!res.ok) throw new Error('Failed to fetch game manifest')
+  return res.json()
 }

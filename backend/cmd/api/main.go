@@ -127,14 +127,19 @@ func main() {
 		})
 	}
 
-	transcoder := service.NewTranscodeService()
-	s3Listener := service.NewS3Listener(gameSvc, natsClient, transcoder)
+	validationSvc := service.NewValidationService()
+	s3Listener := service.NewS3Listener(gameSvc, natsClient, validationSvc)
 	go s3Listener.Start()
+
+	// Initialize Provisioning Logic
+	provisioningSvc := service.NewProvisioningService(gameSvc, natsClient)
+	nodeAgent := service.NewNodeAgent("local-dev-node", gameSvc, natsClient)
+	go nodeAgent.Start()
 
 	gameStateListener := service.NewGameStateListener(natsClient, hub)
 	go gameStateListener.Start()
 
-	router := transport.NewRouter(authSvc, gameSvc, hub, natsClient)
+	router := transport.NewRouter(authSvc, gameSvc, hub, natsClient, provisioningSvc)
 
 	logr.Info("Listening on", zap.String("port", cfg.ServerPort))
 	if err := http.ListenAndServe(cfg.ServerPort, router); err != nil {

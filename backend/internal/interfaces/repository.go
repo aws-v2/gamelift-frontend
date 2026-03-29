@@ -10,6 +10,12 @@ type GameRepository interface {
 	RegisterGame(name, vmID, accountID string) (*domain.Game, error)
 	InitUpload(name, vmID, accountID string) (*domain.Game, error)
 	UpdateGameStatus(id int, status domain.GameStatus, storageARN string) error
+	UpdateGameManifest(id int, manifest string) error
+}
+
+// ProvisioningService defines the contract for on-demand game startup.
+type ProvisioningService interface {
+	ProvisionGame(gameID int) error
 }
 
 // AuthService defines the contract for authentication operations.

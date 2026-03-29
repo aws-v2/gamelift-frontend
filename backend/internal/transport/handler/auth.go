@@ -6,6 +6,7 @@ import (
 
 	"backend/internal/domain"
 	"backend/internal/interfaces"
+	"backend/internal/transport/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,7 +22,7 @@ func NewAuthHandler(authSvc interfaces.AuthService) *AuthHandler {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req domain.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.Username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		response.SendError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
@@ -30,9 +31,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	token, err := h.authSvc.GenerateToken(req.Username)
 	if err != nil {
 		log.Printf("[AUTH] Token generation failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		response.SendError(c, http.StatusInternalServerError, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, domain.LoginResponse{Token: token})
+	response.SendSuccess(c, http.StatusOK, "Login successful", domain.LoginResponse{Token: token})
 }

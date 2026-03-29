@@ -82,6 +82,7 @@
 <script setup>
 import { ref } from 'vue'
 import { initUpload, uploadToS3 } from '../services/api.js'
+import JSZip from 'jszip'
 
 const form = ref({
   game_name: '',
@@ -110,14 +111,33 @@ async function handleSubmit() {
   error.value = ''
   
   try {
+    // Step 0: Extract Manifest from ZIP
+    uploadStatus.value = 'Extracting manifest from package...'
+    const zip = new JSZip()
+    const zipContent = await zip.loadAsync(selectedFile.value)
+    
+    const manifestFile = zipContent.file("game.json")
+    if (!manifestFile) {
+      throw new Error('Invalid package: Missing game.json in root')
+    }
+    
+    const manifestText = await manifestFile.async("text")
+    let manifest
+    try {
+      manifest = JSON.parse(manifestText)
+    } catch (e) {
+      throw new Error('Invalid package: game.json is malformed')
+    }
+
     // Step 1: Initializing Upload (Get Presigned URL)
-    uploadStatus.value = 'Initializing upload...'
+    uploadStatus.value = 'Initializing upload with manifest...'
     const initData = await initUpload({
       game_name: form.value.game_name,
-      vm_id: form.value.vm_id
+      vm_id: form.value.vm_id,
+      manifest: manifest
     })
 
-    const { upload_url, url, game_id, temporary_game_id } = initData
+    const { upload_url, url, game_id, temporary_game_id } = initData.data || initData
     const finalUrl = upload_url || url
     const finalGameId = game_id || temporary_game_id
 
@@ -126,11 +146,11 @@ async function handleSubmit() {
     }
 
     // Step 2: Upload Binary directly to S3
-    uploadStatus.value = 'Uploading file to storage...'
+    uploadStatus.value = 'Uploading ZIP to storage...'
     await uploadToS3(finalUrl, selectedFile.value)
 
     // Success!
-    successData.value = initData
+    successData.value = initData.data || initData
     uploadStatus.value = ''
   } catch (err) {
     error.value = err.message || 'An error occurred during upload. Please try again.'

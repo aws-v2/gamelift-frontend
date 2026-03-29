@@ -18,7 +18,11 @@ func _ready():
 		printerr("[Player] Failed to load StateStreamer.gd at res://player/state_streamer.gd")
 
 	#4 Remove the cursor from view when game window comes up, ie capture the mouse
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	# Skip mouse capture in headless mode (for VM testing)
+	if DisplayServer.get_name() != "headless":
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	else:
+		print("[Player] Headless mode detected. Skipping mouse capture.")
 
 func  _unhandled_input(event):
 	if event is 	InputEventMouseMotion:

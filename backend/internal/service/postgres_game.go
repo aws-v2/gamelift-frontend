@@ -18,8 +18,8 @@ func NewPostgresGameRepository(db *database.DB) *PostgresGameRepository {
 
 func (r *PostgresGameRepository) ListGames() ([]domain.Game, error) {
 	var games []domain.Game
-	// Only list active games to the user
-	err := r.db.GORM.Where("status = ?", domain.GameStatusActive).Find(&games).Error
+	// List games that are either running (active) or ready to be provisioned (stored)
+	err := r.db.GORM.Where("status IN ?", []domain.GameStatus{domain.GameStatusActive, domain.GameStatusStored}).Find(&games).Error
 	return games, err
 }
 
@@ -81,4 +81,7 @@ func (r *PostgresGameRepository) UpdateGameStatus(id int, status domain.GameStat
 		"status":      status,
 		"storage_arn": storageARN,
 	}).Error
+}
+func (r *PostgresGameRepository) UpdateGameManifest(id int, manifest string) error {
+	return r.db.GORM.Model(&domain.Game{}).Where("id = ?", id).Update("manifest", manifest).Error
 }

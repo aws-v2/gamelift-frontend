@@ -6,6 +6,7 @@ import (
 
 	"backend/internal/domain"
 	"backend/internal/interfaces"
+	"backend/internal/transport/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,14 +29,16 @@ func AuthMiddleware(authSvc interfaces.AuthService) gin.HandlerFunc {
 		}
 
 		if tokenStr == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			response.SendError(c, http.StatusUnauthorized, "unauthorized")
+			c.Abort()
 			return
 		}
 
 		// Validate token
 		claims, err := authSvc.ValidateToken(tokenStr)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			response.SendError(c, http.StatusUnauthorized, "unauthorized")
+			c.Abort()
 			return
 		}
 
@@ -46,7 +49,8 @@ func AuthMiddleware(authSvc interfaces.AuthService) gin.HandlerFunc {
 		}
 
 		if !ok || userID == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid claims"})
+			response.SendError(c, http.StatusUnauthorized, "invalid claims")
+			c.Abort()
 			return
 		}
 

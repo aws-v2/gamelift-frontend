@@ -3,7 +3,12 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
 
 	"backend/internal/domain"
 	"backend/internal/interfaces"
@@ -13,16 +18,16 @@ import (
 )
 
 type S3Listener struct {
-	gameRepo   interfaces.GameRepository
-	natsClient *messaging.NatsClient
-	transcoder *TranscodeService
+	gameRepo      interfaces.GameRepository
+	natsClient    *messaging.NatsClient
+	validationSvc *ValidationService
 }
 
-func NewS3Listener(gameRepo interfaces.GameRepository, natsClient *messaging.NatsClient, transcoder *TranscodeService) *S3Listener {
+func NewS3Listener(gameRepo interfaces.GameRepository, natsClient *messaging.NatsClient, validationSvc *ValidationService) *S3Listener {
 	return &S3Listener{
-		gameRepo:   gameRepo,
-		natsClient: natsClient,
-		transcoder: transcoder,
+		gameRepo:      gameRepo,
+		natsClient:    natsClient,
+		validationSvc: validationSvc,
 	}
 }
 
@@ -49,23 +54,73 @@ func (l *S3Listener) Start() {
 		}
 
 		if payload.Status == "success" {
-			// Construct local path (assuming backend has access to the same storage)
-			mp4Path := fmt.Sprintf("./uploads/games/%d/game.mp4", payload.GameID)
+			log.Printf("[S3Listener] S3 Upload successful for Game %d. Starting Async Validation...", payload.GameID)
 
-			// 1. Transcode in background before activating
-			log.Printf("[S3Listener] Starting pre-processing for Game %d...", payload.GameID)
-			if err := l.transcoder.Transcode(mp4Path); err != nil {
-				log.Printf("[S3Listener] Pre-processing failed for Game %d: %v", payload.GameID, err)
+			// 1. Get Game Record
+			game, err := l.gameRepo.GetGame(payload.GameID)
+			if err != nil {
+				log.Printf("[S3Listener] Failed to find game %d: %v", payload.GameID, err)
 				return
 			}
 
-			// 2. Finalize game record
-			log.Printf("[S3Listener] Finalizing game %d with S3 ARN %s", payload.GameID, payload.StorageARN)
-			err := l.gameRepo.UpdateGameStatus(payload.GameID, domain.GameStatusActive, payload.StorageARN)
+			// 2. Request Download URL from S3 Service
+			downSubj := messaging.Subject{
+				Env:        "dev",
+				Service:    "s3",
+				Version:    "v1",
+				Domain:     "s3",
+				ActionType: "get_download_url",
+			}
+			reqPayload := map[string]interface{}{
+				"game_id": payload.GameID,
+				"user_id": "system",
+				"key":     fmt.Sprintf("uploads/games/%d/game.zip", payload.GameID),
+			}
+			reqData, _ := json.Marshal(reqPayload)
+			msg, err := l.natsClient.Request(downSubj, reqData, 5*time.Second)
 			if err != nil {
-				log.Printf("[S3Listener] Failed to update game status for Game %d: %v", payload.GameID, err)
-			} else {
-				log.Printf("[S3Listener] Game %d is now ACTIVE and visible!", payload.GameID)
+				log.Printf("[S3Listener] Failed to get download URL: %v", err)
+				return
+			}
+
+			var downResp struct {
+				DownloadURL string `json:"download_url"`
+			}
+			json.Unmarshal(msg.Data, &downResp)
+
+			// 3. Download to Temp Location
+			tempZip := filepath.Join("/tmp", fmt.Sprintf("val_%d.zip", payload.GameID))
+			tempDir := filepath.Join("/tmp", fmt.Sprintf("val_ext_%d", payload.GameID))
+			defer os.RemoveAll(tempZip)
+			defer os.RemoveAll(tempDir)
+
+			if err := l.downloadFile(downResp.DownloadURL, tempZip); err != nil {
+				log.Printf("[S3Listener] Download failed: %v", err)
+				l.gameRepo.UpdateGameStatus(payload.GameID, "failed", "")
+				return
+			}
+
+			// 4. Validate
+			var manifest domain.GameManifest
+			json.Unmarshal([]byte(game.Manifest), &manifest)
+
+			if err := l.validationSvc.Unzip(tempZip, tempDir); err != nil {
+				log.Printf("[S3Listener] Unzip failed: %v", err)
+				l.gameRepo.UpdateGameStatus(payload.GameID, "failed", "")
+				return
+			}
+
+			if err := l.validationSvc.ValidateStructure(tempDir, manifest); err != nil {
+				log.Printf("[S3Listener] Validation failed for Game %d: %v", payload.GameID, err)
+				l.gameRepo.UpdateGameStatus(payload.GameID, "failed", "")
+				return
+			}
+
+			// 5. Finalize
+			log.Printf("[S3Listener] Validation passed! Finalizing game %d", payload.GameID)
+			err = l.gameRepo.UpdateGameStatus(payload.GameID, domain.GameStatusStored, payload.StorageARN)
+			if err != nil {
+				log.Printf("[S3Listener] Failed to update status: %v", err)
 			}
 		}
 	})
@@ -73,4 +128,21 @@ func (l *S3Listener) Start() {
 	if err != nil {
 		log.Fatalf("[S3Listener] Failed to subscribe to NATS: %v", err)
 	}
+}
+
+func (l *S3Listener) downloadFile(url, dest string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
 }

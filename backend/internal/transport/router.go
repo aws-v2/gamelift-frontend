@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(authSvc interfaces.AuthService, gameSvc interfaces.GameRepository, hub *handler.Hub, natsClient *messaging.NatsClient) *gin.Engine {
+func NewRouter(authSvc interfaces.AuthService, gameSvc interfaces.GameRepository, hub *handler.Hub, natsClient *messaging.NatsClient, provisioningSvc interfaces.ProvisioningService) *gin.Engine {
 	r := gin.Default()
 
 	// Configure CORS
@@ -19,22 +19,26 @@ func NewRouter(authSvc interfaces.AuthService, gameSvc interfaces.GameRepository
 	r.Use(cors.New(config))
 
 	authHandler := handler.NewAuthHandler(authSvc)
-	gameHandler := handler.NewGameHandler(gameSvc, natsClient)
+	gameHandler := handler.NewGameHandler(gameSvc, natsClient, provisioningSvc)
 	wsHandler := handler.NewWebSocketHandler(hub)
 
 	r.POST("/login", authHandler.Login)
 	r.GET("/games", gameHandler.ListGames)
+	r.GET("/games/:id/manifest", gameHandler.GetManifest)
 	
 	// Protected routes
 	protected := r.Group("/")
 	protected.Use(AuthMiddleware(authSvc))
 	{
-		protected.POST("/games/register", gameHandler.RegisterGame)
 		protected.POST("/games/init-upload", gameHandler.InitUpload)
+		protected.POST("/games/play", gameHandler.PlayGame)
 	}
 
 	// Public WebSocket for state-streaming
 	r.GET("/ws", wsHandler.Handle)
+
+	// Serve game assets statically
+	r.Static("/game_static", "./uploads/games")
 
 	return r
 }
