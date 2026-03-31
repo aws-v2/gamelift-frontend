@@ -21,8 +21,9 @@
       <div v-if="loading" class="game-overlay">
         <div class="overlay-content">
           <div class="overlay-spinner"></div>
-          <p>Connecting & Loading Assets...</p>
-          <p style="font-size: 10px; color: #666; margin-top: 10px;">[DEBUG] Loading timeout active</p>
+          <p>WebSocket Debug Mode Active</p>
+          <p style="font-size: 12px; color: #a78bfa; margin-top: 10px;">[NOTICE] 3D Asset Loading Disabled</p>
+          <p style="font-size: 10px; color: #666; margin-top: 5px;">Check console for real-time server data</p>
         </div>
       </div>
     </div>
@@ -110,41 +111,7 @@ async function loadGame() {
     console.log('[Game] Fetching manifest for game:', route.params.id)
     manifest.value = await fetchGameManifest(route.params.id)
     
-    const assetPath = `/game_static/${route.params.id}/${manifest.value.frontend.entry_asset}`
-    console.log('[Game] Loading main asset:', assetPath)
-    
-    levelScene = await assetLoader.loadModel(assetPath)
-    assetLoader.applyFallbacks(levelScene)
-    scene.add(levelScene)
-
-    // Setup Player
-    const playerName = manifest.value.frontend.player_node || 'CharacterBody3D'
-    const playerMesh = levelScene.getObjectByName(playerName)
-
-    if (playerMesh) {
-      console.log('[Game] Found player:', playerName)
-      setupEntity(playerName, playerMesh)
-      
-      // Attach Camera
-      camera.position.set(0, 0.8, 0) 
-      playerMesh.add(camera)
-      playerMesh.rotation.order = 'YXZ'
-      camera.rotation.order = 'YXZ'
-      
-      setupPointerLock(playerMesh)
-    }
-
-    // Setup other synced nodes
-    if (manifest.value.frontend.sync_nodes) {
-      manifest.value.frontend.sync_nodes.forEach(node => {
-        const mesh = levelScene.getObjectByName(node.name)
-        if (mesh) {
-          console.log('[Game] Registering sync node:', node.name)
-          setupEntity(node.name, mesh)
-        }
-      })
-    }
-
+    console.log('[Game] Asset loading bypassed for debug mode.')
     loading.value = false
   } catch (err) {
     console.error('[Game] Error loading gear:', err)
@@ -174,7 +141,7 @@ function tick() {
     mesh.rotation.y += (target.yaw - mesh.rotation.y) * 0.2
     
     // If it's the player, sync camera pitch
-    if (name === manifest.value?.frontend?.player_node) {
+    if (name === manifest.value?.player_node) {
       camera.rotation.x += (target.pitch - camera.rotation.x) * 0.2
     }
   })
@@ -187,11 +154,12 @@ function tick() {
 // --- WebSocket Handling ---
 function handleServerMessage(event) {
   try {
+    console.log('[WS][Data Received]', event.data)
     const data = JSON.parse(event.data)
     
     // We expect updates like: { "node": "PlayerCharacter", "x": 10, ... }
     // Or a list of updates? For now assume single node update
-    const nodeName = data.node || manifest.value?.frontend?.player_node
+    const nodeName = data.node || manifest.value?.player_node
     const entity = entities.get(nodeName)
     
     if (entity) {

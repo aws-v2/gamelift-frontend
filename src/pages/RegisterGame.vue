@@ -21,12 +21,12 @@
         <form @submit.prevent="handleSubmit" class="register-form" v-if="!successData">
           <div class="form-group">
             <label for="game_name">Game Name</label>
-            <input id="game_name" v-model="form.game_name" type="text" required placeholder="e.g. Cyberpunk 2077" />
+            <input id="game_name" v-model="form.game_name" type="text" required value="e.g. Cyberpunk 2077" />
           </div>
 
           <div class="form-group">
             <label for="vm_id">VM Identifier</label>
-            <input id="vm_id" v-model="form.vm_id" type="text" required placeholder="e.g. vm-xlarge-gpu" />
+            <input id="vm_id" v-model="form.vm_id" type="text" required value="e.g. vm-xlarge-gpu" />
           </div>
 
           <div class="form-group">
@@ -137,9 +137,9 @@ async function handleSubmit() {
       manifest: manifest
     })
 
-    const { upload_url, url, game_id, temporary_game_id } = initData.data || initData
-    const finalUrl = upload_url || url
-    const finalGameId = game_id || temporary_game_id
+    const result = initData.data || initData
+    const finalUrl = result.upload_url || result.url
+    const finalGameId = result.game_id || result.temporary_game_id
 
     if (!finalUrl) {
       throw new Error('Failed to get upload URL from server')
@@ -150,7 +150,7 @@ async function handleSubmit() {
     await uploadToS3(finalUrl, selectedFile.value)
 
     // Success!
-    successData.value = initData.data || initData
+    successData.value = result
     uploadStatus.value = ''
   } catch (err) {
     error.value = err.message || 'An error occurred during upload. Please try again.'
