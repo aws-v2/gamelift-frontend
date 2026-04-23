@@ -4,51 +4,38 @@
       <router-link to="/" class="brand">
         <span class="logo-mark">[S]</span> <span class="logo-text">Serwin Games</span>
       </router-link>
-      <div class="nav-meta">PROTOCOL: AUTH // SECURE</div>
+      <div class="nav-meta">PROTOCOL: RECOVER_CREDS // SECURE</div>
     </header>
 
     <div class="auth-container">
       <div class="auth-card">
-        <h1 class="auth-title">Authenticate <span class="t-orange">system</span>.</h1>
-        <p class="auth-subtitle">Provide your credentials to access the infrastructure.</p>
+        <h1 class="auth-title">System <span class="t-orange">recovery</span>.</h1>
+        <p class="auth-subtitle">Verify identity to regain system access.</p>
 
-        <form @submit.prevent="handleLogin" class="auth-form">
+        <form @submit.prevent="handleRecover" class="auth-form">
           <div class="form-group">
             <div class="label-row">
               <label>EMAIL</label>
             </div>
             <input
-              id="username-input"
               v-model="email"
               type="email"
-              placeholder="Enter your email address"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <div class="label-row">
-              <label>PASSWORD</label>
-            </div>
-            <input
-              id="password-input"
-              v-model="password"
-              type="password"
-              placeholder="Enter your security phrase"
+              placeholder="Enter your email"
               required
             />
           </div>
 
-          <button id="login-button" type="submit" :disabled="loading" class="submit-btn">
+          <button type="submit" :disabled="loading" class="submit-btn">
             <span v-if="loading" class="spinner"></span>
-            <span v-else>AUTHENTICATE <span class="arrow">↗</span></span>
+            <span v-else>SEND RECOVERY CHIP <span class="arrow">↗</span></span>
           </button>
           
+          <p v-if="message" class="success-msg">{{ message }}</p>
           <p v-if="error" class="error-msg">{{ error }}</p>
         </form>
 
         <div class="auth-footer">
-          <p>No account yet? <router-link to="/register" class="link">Initialize access.</router-link></p>
-          <p><router-link to="/forgot-password" class="link" style="margin-left: 0;">Recover forgotten credentials.</router-link></p>
+          <p>Remember your keys? <router-link to="/login" class="link">Authenticate here.</router-link></p>
         </div>
       </div>
     </div>
@@ -57,24 +44,23 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { login } from '../services/api.js'
+import { forgotPassword } from '../services/api.js'
 
-const router = useRouter()
 const email = ref('')
-const password = ref('')
 const loading = ref(false)
 const error = ref('')
+const message = ref('')
 
-async function handleLogin() {
-  if (!email.value.trim() || !password.value) return
+async function handleRecover() {
+  if (!email.value.trim()) return
   loading.value = true
   error.value = ''
+  message.value = ''
   try {
-    await login(email.value.trim(), password.value) 
-    router.push('/home')
+    await forgotPassword(email.value.trim())
+    message.value = 'Recovery instructions dispatched to secure channel.'
   } catch (err) {
-    error.value = 'Authentication failed. Unauthorized node.'
+    error.value = 'Dispatch failed.'
   } finally {
     loading.value = false
   }
@@ -82,6 +68,7 @@ async function handleLogin() {
 </script>
 
 <style scoped>
+/* Same CSS as Register.vue */
 .auth-page {
   min-height: 100vh;
   display: flex;
@@ -236,6 +223,14 @@ async function handleLogin() {
   text-align: center;
 }
 
+.success-msg {
+  color: #10b981;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  margin: 0;
+  text-align: center;
+}
+
 .auth-footer {
   margin-top: 32px;
   text-align: left;
@@ -243,9 +238,6 @@ async function handleLogin() {
   color: var(--text-muted);
   border-top: 1px solid var(--border-color);
   padding-top: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .link {

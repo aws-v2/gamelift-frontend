@@ -4,24 +4,33 @@
       <router-link to="/" class="brand">
         <span class="logo-mark">[S]</span> <span class="logo-text">Serwin Games</span>
       </router-link>
-      <div class="nav-meta">PROTOCOL: AUTH // SECURE</div>
+      <div class="nav-meta">PROTOCOL: REGISTER_USER // SECURE</div>
     </header>
 
     <div class="auth-container">
       <div class="auth-card">
-        <h1 class="auth-title">Authenticate <span class="t-orange">system</span>.</h1>
-        <p class="auth-subtitle">Provide your credentials to access the infrastructure.</p>
+        <h1 class="auth-title">Initialize new<br><span class="t-orange">account</span>.</h1>
+        <p class="auth-subtitle">Create your ID to access bare-metal infrastructure.</p>
 
-        <form @submit.prevent="handleLogin" class="auth-form">
+        <form @submit.prevent="handleRegister" class="auth-form">
+          <div class="form-row">
+            <div class="form-group half">
+              <div class="label-row"><label>FIRST NAME</label></div>
+              <input v-model="form.firstName" type="text" placeholder="John" required />
+            </div>
+            <div class="form-group half">
+              <div class="label-row"><label>LAST NAME</label></div>
+              <input v-model="form.lastName" type="text" placeholder="Doe" required />
+            </div>
+          </div>
           <div class="form-group">
             <div class="label-row">
               <label>EMAIL</label>
             </div>
             <input
-              id="username-input"
-              v-model="email"
+              v-model="form.email"
               type="email"
-              placeholder="Enter your email address"
+              placeholder="Enter desired email"
               required
             />
           </div>
@@ -30,25 +39,34 @@
               <label>PASSWORD</label>
             </div>
             <input
-              id="password-input"
-              v-model="password"
+              v-model="form.password"
               type="password"
-              placeholder="Enter your security phrase"
+              placeholder="Enter secure password"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <label>CONFIRM PASSWORD</label>
+            </div>
+            <input
+              v-model="form.confirmPassword"
+              type="password"
+              placeholder="Verify password"
               required
             />
           </div>
 
-          <button id="login-button" type="submit" :disabled="loading" class="submit-btn">
+          <button type="submit" :disabled="loading" class="submit-btn">
             <span v-if="loading" class="spinner"></span>
-            <span v-else>AUTHENTICATE <span class="arrow">↗</span></span>
+            <span v-else>REGISTER <span class="arrow">↗</span></span>
           </button>
           
           <p v-if="error" class="error-msg">{{ error }}</p>
         </form>
 
         <div class="auth-footer">
-          <p>No account yet? <router-link to="/register" class="link">Initialize access.</router-link></p>
-          <p><router-link to="/forgot-password" class="link" style="margin-left: 0;">Recover forgotten credentials.</router-link></p>
+          <p>Already configured? <router-link to="/login" class="link">Authenticate here.</router-link></p>
         </div>
       </div>
     </div>
@@ -58,23 +76,31 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { login } from '../services/api.js'
+import { register } from '../services/api.js'
 
 const router = useRouter()
-const email = ref('')
-const password = ref('')
+const form = ref({
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: '',
+  confirmPassword: ''
+})
 const loading = ref(false)
 const error = ref('')
 
-async function handleLogin() {
-  if (!email.value.trim() || !password.value) return
+async function handleRegister() {
+  if (form.value.password !== form.value.confirmPassword) {
+    error.value = 'Passwords do not match.'
+    return
+  }
   loading.value = true
   error.value = ''
   try {
-    await login(email.value.trim(), password.value) 
+    await register({ ...form.value }) 
     router.push('/home')
   } catch (err) {
-    error.value = 'Authentication failed. Unauthorized node.'
+    error.value = 'Initialization failed. System error.'
   } finally {
     loading.value = false
   }
@@ -164,9 +190,18 @@ async function handleLogin() {
   gap: 24px;
 }
 
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
+}
+
+.form-group.half {
+  flex: 1;
 }
 
 .label-row {
@@ -243,9 +278,6 @@ async function handleLogin() {
   color: var(--text-muted);
   border-top: 1px solid var(--border-color);
   padding-top: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .link {

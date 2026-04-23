@@ -1,85 +1,92 @@
 <template>
-  <div class="home-page">
-    <header class="home-header">
-      <div class="header-left">
-        <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
-          <rect width="48" height="48" rx="12" fill="url(#hgrad)" />
-          <path d="M14 28c0-2 1-3 3-3h14c2 0 3 1 3 3v2c0 2-1 3-3 3H17c-2 0-3-1-3-3v-2z" fill="#fff" opacity="0.9"/>
-          <circle cx="19" cy="29" r="1.5" fill="#7c3aed"/>
-          <circle cx="24" cy="29" r="1.5" fill="#7c3aed"/>
-          <circle cx="29" cy="29" r="1.5" fill="#7c3aed"/>
-          <path d="M16 22l8-8 8 8" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <defs>
-            <linearGradient id="hgrad" x1="0" y1="0" x2="48" y2="48">
-              <stop stop-color="#7c3aed"/>
-              <stop offset="1" stop-color="#2563eb"/>
-            </linearGradient>
-          </defs>
-        </svg>
-        <span class="header-brand">Cloud Gaming</span>
+  <div class="dashboard-page">
+    <header class="top-nav overlay-nav">
+      <div class="brand">
+        <span class="logo-mark">[S]</span> <span class="logo-text">Serwin Games</span>
       </div>
-      <div class="header-right">
-        <router-link to="/register" class="action-btn">Register Game</router-link>
+      <nav class="nav-links">
+        <span class="nav-item active">Discover</span>
+        <span class="nav-item">Library</span>
+        <span class="nav-item">Community</span>
+      </nav>
+      <div class="nav-actions">
+        <span class="profile-name">Player One</span>
         <button id="logout-button" class="logout-btn" @click="handleLogout">
-          Sign Out
+          LOGOUT <span class="arrow">×</span>
         </button>
       </div>
     </header>
 
-    <main class="home-content">
-      <div class="home-hero">
-        <h1>Game Library</h1>
-        <p>Choose a game to start playing instantly</p>
-      </div>
-
-      <div v-if="loading" class="home-loading">
+    <main class="dashboard-content">
+      <div v-if="loading" class="dash-state">
         <div class="loader"></div>
-        <p>Loading games...</p>
+        <p>Syncing your library...</p>
       </div>
 
-      <div v-else-if="error" class="home-error">
+      <div v-else-if="error" class="dash-state">
         <p>{{ error }}</p>
-        <button class="retry-btn" @click="loadGames">Retry</button>
+        <button class="retry-btn" @click="loadGames">RETRY SYNC</button>
       </div>
 
-      <div v-else-if="games.length === 0" class="home-empty">
-        <p>No games available at the moment.</p>
+      <div v-else-if="games.length === 0" class="dash-state">
+        <p>Your library is empty. Discover new worlds.</p>
       </div>
 
-      <div v-else class="games-grid">
-        <div
-          v-for="game in games"
-          :key="game.id"
-          class="game-card"
-        >
-          <div class="game-card-visual">
-            <div class="game-card-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="5 3 19 12 5 21 5 3"/>
-              </svg>
+      <template v-else>
+        <!-- HERO SECTION -->
+        <section class="dash-hero" :style="{ backgroundImage: `url(https://picsum.photos/seed/${heroGame.id}/1920/1080)` }">
+          <div class="hero-vignette"></div>
+          
+          <div class="hero-content">
+            <h1 class="hero-title">{{ heroGame.game_name }}</h1>
+            
+            <div class="hero-meta">
+              <span class="meta-tag rating">★ 9.8/10</span>
+              <span class="meta-tag popularity">TOP PICK</span>
+            </div>
+            
+            <p class="hero-details">
+              Action / Adventure • 2026 • 4K HDR
+            </p>
+            
+            <p class="hero-desc">
+              Continue your epic journey. Your last checkpoint was in the Shattered Peaks. The world awaits your return.
+            </p>
+            
+            <div class="hero-actions">
+              <button class="btn-primary" @click="viewDetails(heroGame.id)">
+                <span class="icon">▶</span> PLAY
+              </button>
+              <button class="btn-secondary" @click="viewDetails(heroGame.id)">
+                <span class="icon">ℹ</span> DETAILS
+              </button>
             </div>
           </div>
-          <div class="game-card-info">
-            <h3 class="game-name">{{ game.game_name }}</h3>
-            <button
-              :id="'play-btn-' + game.id"
-              class="play-btn"
-              @click="playGame(game.id)"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3"/>
-              </svg>
-              Play
-            </button>
+
+          <!-- POSTERS CAROUSEL IN THE BOTTOM -->
+          <div class="posters-container">
+             <div class="posters-carousel">
+                <div 
+                  v-for="game in remainingGames" 
+                  :key="game.id" 
+                  class="poster-card"
+                  @click="viewDetails(game.id)"
+                >
+                  <div class="poster-image" :style="{ backgroundImage: `url(https://picsum.photos/seed/${game.id}/600/400)` }"></div>
+                  <div class="poster-overlay">
+                    <h3 class="poster-title">{{ game.game_name }}</h3>
+                  </div>
+                </div>
+             </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </template>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchGames } from '../services/api.js'
 
@@ -92,16 +99,21 @@ async function loadGames() {
   loading.value = true
   error.value = ''
   try {
-    games.value = await fetchGames()
+    const fetched = await fetchGames()
+    games.value = fetched || []
   } catch (err) {
-    error.value = 'Failed to load games. Please try again.'
+    error.value = 'Failed to sync workloads across nodes.'
   } finally {
     loading.value = false
   }
 }
 
-function playGame(id) {
-  router.push(`/game/${id}`)
+const heroGame = computed(() => games.value[0] || null)
+// We still display the hero game in the carousel, or hide it. Let's show all games in the carousel to be more like a library.
+const remainingGames = computed(() => games.value)
+
+function viewDetails(id) {
+  router.push(`/game-details/${id}`)
 }
 
 function handleLogout() {
@@ -113,224 +125,333 @@ onMounted(loadGames)
 </script>
 
 <style scoped>
-.home-page {
+.dashboard-page {
   min-height: 100vh;
-  background: #0a0a0f;
+  background-color: var(--bg-primary);
+  position: relative;
+  overflow: hidden; /* Hide body scroll if we make the hero 100vh exactly */
 }
 
-.home-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 32px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(10, 10, 15, 0.8);
-  backdrop-filter: blur(12px);
-  position: sticky;
+/* TOP NAV OVERLAY */
+.top-nav.overlay-nav {
+  position: absolute;
   top: 0;
-  z-index: 10;
-}
-
-.header-left {
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+  border-bottom: none;
+  padding: 30px 60px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  font-family: var(--font-sans);
+  font-size: 14px;
 }
 
-.header-brand {
-  font-size: 18px;
+.brand {
+  font-family: var(--font-sans);
+  font-size: 20px;
   font-weight: 700;
-  color: #fff;
-  letter-spacing: -0.3px;
-}
-
-.header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
-.action-btn {
-  padding: 8px 20px;
-  background: linear-gradient(135deg, #7c3aed, #2563eb);
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: 'Inter', sans-serif;
-  text-decoration: none;
+.logo-mark {
+  color: var(--accent);
+}
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+}
+
+.nav-item {
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 0.2s;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  text-decoration: none;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
 
-.action-btn:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+.nav-item.active {
+  color: #fff;
+  border-bottom: 2px solid #fff;
+  padding-bottom: 4px;
+}
+
+.nav-item:hover {
+  color: #fff;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.profile-name {
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
 
 .logout-btn {
-  padding: 8px 20px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  font-family: var(--font-sans);
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 4px;
 }
 
 .logout-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.home-content {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 40px 32px;
-}
-
-.home-hero {
-  margin-bottom: 40px;
-}
-
-.home-hero h1 {
-  font-size: 32px;
-  font-weight: 800;
-  color: #fff;
-  margin: 0 0 8px;
-  letter-spacing: -0.5px;
-}
-
-.home-hero p {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 15px;
-  margin: 0;
-}
-
-.home-loading,
-.home-error,
-.home-empty {
-  text-align: center;
-  padding: 80px 0;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.loader {
-  width: 32px;
-  height: 32px;
-  border: 3px solid rgba(124, 58, 237, 0.2);
-  border-top-color: #7c3aed;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  margin: 0 auto 16px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.retry-btn {
-  margin-top: 16px;
-  padding: 10px 24px;
-  background: linear-gradient(135deg, #7c3aed, #2563eb);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.retry-btn:hover {
-  opacity: 0.9;
-}
-
-.games-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 20px;
-}
-
-.game-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  overflow: hidden;
-  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
-  animation: card-in 0.4s ease-out both;
-}
-
-.game-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(124, 58, 237, 0.3);
-  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.1);
-}
-
-@keyframes card-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.game-card-visual {
-  height: 140px;
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(37, 99, 235, 0.1));
+/* STATE MESSAGES */
+.dash-state {
+  height: 100vh;
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+/* DASHBOARD CONTENT */
+.dashboard-content {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* HERO CINEMATIC */
+.dash-hero {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
   justify-content: center;
 }
 
-.game-card-icon {
-  color: rgba(255, 255, 255, 0.15);
+.hero-vignette {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.5) 100%), 
+              linear-gradient(90deg, rgba(10, 10, 15, 0.9) 0%, rgba(10, 10, 15, 0.3) 50%, rgba(0,0,0,0) 100%),
+              linear-gradient(0deg, rgba(10, 10, 15, 1) 0%, rgba(10, 10, 15, 0) 30%);
+  pointer-events: none;
 }
 
-.game-card-info {
-  padding: 20px;
+.hero-content {
+  position: relative;
+  z-index: 10;
+  padding: 0 60px;
+  max-width: 800px;
+  margin-top: auto;
+  margin-bottom: 300px; /* Leave space for bottom posters */
+}
+
+.hero-title {
+  font-family: var(--font-serif);
+  font-size: 90px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -2px;
+  margin-bottom: 24px;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.8);
+  font-style: italic;
+  color: #fff;
+  background: -webkit-linear-gradient(#fff, #a0d8f1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.game-name {
+  gap: 24px;
+  margin-bottom: 12px;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.play-btn {
+.meta-tag.rating {
+  color: #eab308;
+}
+
+.meta-tag.popularity {
+  color: #e5e5e5;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
-  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  gap: 8px;
+}
+
+.hero-details {
+  font-family: var(--font-sans);
+  color: rgba(255,255,255,0.7);
+  font-size: 15px;
+  margin-bottom: 24px;
+}
+
+.hero-desc {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  margin-bottom: 40px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  max-width: 600px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.btn-primary {
+  background: #3b82f6; /* Blueish to match Avatar vibe initially, or keep orange. Let's make it vivid blue/netflix style */
+  background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: 'Inter', sans-serif;
+  padding: 16px 40px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 8px;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.15s;
-  white-space: nowrap;
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s, background 0.2s;
+  box-shadow: 0 4px 14px rgba(242, 84, 45, 0.4);
 }
 
-.play-btn:hover {
+.btn-primary:hover {
+  background: #d64724;
+  transform: scale(1.05);
+}
+
+.btn-secondary {
+  background: rgba(80, 80, 80, 0.6);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 40px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-secondary:hover {
+  background: rgba(100, 100, 100, 0.8);
+  border-color: #fff;
+}
+
+/* POSTERS CAROUSEL OVERLAYING BOTTOM */
+.posters-container {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  width: 100%;
+  z-index: 20;
+  padding-left: 60px;
+}
+
+.posters-carousel {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 20px;
+  padding-right: 60px;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+}
+
+/* Hide scrollbar for cleaner UI */
+.posters-carousel::-webkit-scrollbar {
+  display: none;
+}
+.posters-carousel {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.poster-card {
+  scroll-snap-align: start;
+  flex: 0 0 260px;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+.poster-card:hover {
+  transform: translateY(-8px) scale(1.05);
+  border-color: #fff;
+  z-index: 30;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+}
+
+.poster-image {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.5s ease;
+}
+
+.poster-card:hover .poster-image {
+  transform: scale(1.1);
+}
+
+.poster-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.8) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 16px;
   opacity: 0.9;
-  transform: translateY(-1px);
 }
 
-.play-btn:active {
-  transform: translateY(0);
+.poster-title {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 </style>

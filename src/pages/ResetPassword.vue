@@ -4,51 +4,49 @@
       <router-link to="/" class="brand">
         <span class="logo-mark">[S]</span> <span class="logo-text">Serwin Games</span>
       </router-link>
-      <div class="nav-meta">PROTOCOL: AUTH // SECURE</div>
+      <div class="nav-meta">PROTOCOL: RESET_PASSWORD // SECURE</div>
     </header>
 
     <div class="auth-container">
       <div class="auth-card">
-        <h1 class="auth-title">Authenticate <span class="t-orange">system</span>.</h1>
-        <p class="auth-subtitle">Provide your credentials to access the infrastructure.</p>
+        <h1 class="auth-title">System <span class="t-orange">reset</span>.</h1>
+        <p class="auth-subtitle">Initialize your new secure credentials.</p>
 
-        <form @submit.prevent="handleLogin" class="auth-form">
+        <form @submit.prevent="handleReset" class="auth-form">
           <div class="form-group">
             <div class="label-row">
-              <label>EMAIL</label>
+              <label>NEW PASSWORD</label>
             </div>
             <input
-              id="username-input"
-              v-model="email"
-              type="email"
-              placeholder="Enter your email address"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <div class="label-row">
-              <label>PASSWORD</label>
-            </div>
-            <input
-              id="password-input"
-              v-model="password"
+              v-model="newPassword"
               type="password"
-              placeholder="Enter your security phrase"
+              placeholder="Enter new secure password"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <label>CONFIRM PASSWORD</label>
+            </div>
+            <input
+              v-model="confirmPassword"
+              type="password"
+              placeholder="Verify new password"
               required
             />
           </div>
 
-          <button id="login-button" type="submit" :disabled="loading" class="submit-btn">
+          <button type="submit" :disabled="loading" class="submit-btn">
             <span v-if="loading" class="spinner"></span>
-            <span v-else>AUTHENTICATE <span class="arrow">↗</span></span>
+            <span v-else>CONFIRM RESET <span class="arrow">↗</span></span>
           </button>
           
+          <p v-if="message" class="success-msg">{{ message }}</p>
           <p v-if="error" class="error-msg">{{ error }}</p>
         </form>
 
-        <div class="auth-footer">
-          <p>No account yet? <router-link to="/register" class="link">Initialize access.</router-link></p>
-          <p><router-link to="/forgot-password" class="link" style="margin-left: 0;">Recover forgotten credentials.</router-link></p>
+        <div class="auth-footer" v-if="message">
+          <p>Reset complete. <router-link to="/login" class="link">Authenticate here.</router-link></p>
         </div>
       </div>
     </div>
@@ -57,24 +55,38 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { login } from '../services/api.js'
+import { useRoute, useRouter } from 'vue-router'
+import { resetPassword } from '../services/api.js'
 
+const route = useRoute()
 const router = useRouter()
-const email = ref('')
-const password = ref('')
+const token = route.query.token || ''
+
+const newPassword = ref('')
+const confirmPassword = ref('')
 const loading = ref(false)
 const error = ref('')
+const message = ref('')
 
-async function handleLogin() {
-  if (!email.value.trim() || !password.value) return
+async function handleReset() {
+  if (newPassword.value !== confirmPassword.value) {
+    error.value = 'Passwords do not match.'
+    return
+  }
+  if (!token) {
+    error.value = 'Invalid or missing reset token.'
+    return
+  }
   loading.value = true
   error.value = ''
+  message.value = ''
   try {
-    await login(email.value.trim(), password.value) 
-    router.push('/home')
+    await resetPassword(token, newPassword.value, confirmPassword.value)
+    message.value = 'Credentials updated. You may now authenticate.'
+    newPassword.value = ''
+    confirmPassword.value = ''
   } catch (err) {
-    error.value = 'Authentication failed. Unauthorized node.'
+    error.value = 'Reset command rejected.'
   } finally {
     loading.value = false
   }
@@ -230,6 +242,14 @@ async function handleLogin() {
 
 .error-msg {
   color: var(--accent);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  margin: 0;
+  text-align: center;
+}
+
+.success-msg {
+  color: #10b981;
   font-size: 13px;
   font-family: var(--font-mono);
   margin: 0;

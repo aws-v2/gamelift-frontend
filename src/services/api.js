@@ -7,19 +7,64 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export async function login(username) {
-  const hardcodedToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOiJiMmMzZDRlNS0yMjIyLTRhNWYtOWM4Mi0xZDRlNmI4ZjNhMjIiLCJzdWIiOiJ0ZXN0LXVzZXIiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3NzQ5MjMwOTYsImV4cCI6MTc3NTAwOTQ5Nn0.MVjtkhqm-CMEszh6RjXEpfj9PVpPsLCVk2AtR0Me84Pjr35cTihMlPs7CtB1A-JYIbTeOVteYn_Wkod5o7_coA'
-  const res = await fetch(`${API_BASE_V1}/gamelift/login`, {
+export async function login(email, password) {
+  const res = await fetch(`${API_BASE_V1}/auth/login`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${hardcodedToken}`
-    },
-    body: JSON.stringify({ username }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
   })
   if (!res.ok) throw new Error('Login failed')
-  localStorage.setItem('token', hardcodedToken)
-  return { token: hardcodedToken }
+  const json = await res.json()
+  // Handles ApiResponse wrapper: json.data contains LoginResponse
+  const data = json.data || json
+  localStorage.setItem('token', data.token)
+  return data
+}
+
+export async function register(userData) {
+  const res = await fetch(`${API_BASE_V1}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData), // email, password, confirmPassword, firstName, lastName
+  })
+  if (!res.ok) throw new Error('Registration failed')
+  const json = await res.json()
+  const data = json.data || json
+  if (data.token) {
+    localStorage.setItem('token', data.token)
+  }
+  return data
+}
+
+export async function forgotPassword(email) {
+  const res = await fetch(`${API_BASE_V1}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) throw new Error('Failed to request password reset')
+  const json = await res.json()
+  return json.data || json
+}
+
+export async function resetPassword(token, newPassword, confirmPassword) {
+  const res = await fetch(`${API_BASE_V1}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, newPassword, confirmPassword }),
+  })
+  if (!res.ok) throw new Error('Failed to reset password')
+  const json = await res.json()
+  return json.data || json
+}
+
+export async function verifyEmail(token) {
+  const res = await fetch(`${API_BASE_V1}/auth/verify-email?token=${encodeURIComponent(token)}`, {
+    method: 'GET'
+  })
+  if (!res.ok) throw new Error('Email verification failed')
+  const json = await res.json()
+  return json.data || json
 }
 
 export async function fetchGames() {

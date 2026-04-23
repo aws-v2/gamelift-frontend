@@ -1,0 +1,51 @@
+name: CI - Test and PR to Staging
+
+on:
+  push:
+    branches: [ "dev" ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run CI checks (Build and Type-check)
+        run: npm run build
+
+  open-pr-to-staging:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create PR dev → staging.
+        run: |
+          if gh pr list --base staging --head dev --state open --json number | jq -e 'length > 0' > /dev/null; then
+            echo "PR already exists. Skipping..."
+          else
+            gh pr create \
+              --base staging \
+              --head dev \
+              --title "chore: promote dev → staging" \
+              --body "✅ All CI checks passed on dev. Auto-generated PR."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
