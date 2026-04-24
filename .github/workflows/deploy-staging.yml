@@ -46,11 +46,11 @@ jobs:
           username: ${{ secrets.STAGING_USERNAME }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
-            docker pull qarani/frontend-server:staging
-            docker stop frontend-server || true
-            docker rm frontend-server || true
+            docker pull qarani/gamelift-frontend-server:staging
+            docker stop gamelift-frontend-server || true
+            docker rm gamelift-frontend-server || true
             docker run -d \
-              --name frontend-server \
+              --name gamelift-frontend-server \
               --network aws-staging-network \
               -e VITE_API_BASE_URL=http://localhost:8080 \
               -e VITE_APP_PROFILE=staging \
