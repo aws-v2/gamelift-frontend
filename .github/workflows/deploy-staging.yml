@@ -24,7 +24,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: qarani/frontend-server:staging
+          tags: qarani/gamelift-frontend-server:staging
           build-args: |
             VITE_APP_PROFILE=staging
 
