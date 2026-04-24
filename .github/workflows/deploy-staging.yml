@@ -55,7 +55,7 @@ jobs:
               -e VITE_API_BASE_URL=http://localhost:8080 \
               -e VITE_APP_PROFILE=staging \
               -e API_GATEWAY_HOST=api-gateway-staging \
-              -p 5173:80 \
+              -p 5173:8001 \
               qarani/frontend-server:staging
 
   open-pr-to-main:
