@@ -55,8 +55,8 @@ jobs:
               -e VITE_API_BASE_URL=http://localhost:8080 \
               -e VITE_APP_PROFILE=staging \
               -e API_GATEWAY_HOST=api-gateway-staging \
-              -p 5173:8001 \
-              qarani/frontend-server:staging
+              -p 8001:8001 \
+              qarani/gamelift-frontend-server:staging
 
   open-pr-to-main:
     needs: deploy
