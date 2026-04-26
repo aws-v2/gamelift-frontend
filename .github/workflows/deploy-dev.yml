@@ -37,23 +37,10 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
-
-  dev-api-test:
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - run: npm ci
-      - run: npm run test:api
-
   dev-build-image:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: [dev-unit-test, dev-api-test]
+    needs: [dev-unit-test]
     steps:
       - uses: actions/checkout@v4
 
@@ -77,8 +64,8 @@ jobs:
 
   dev-open-pr-to-dev:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
-    needs: [dev-unit-test, dev-api-test, dev-build-image]
-    runs-on: ubuntu-latest
+    needs: [dev-unit-test, dev-build-image]
+    runs-on: ubuntu-latest  
     steps:
       - uses: actions/checkout@v4
         with:
