@@ -21,10 +21,13 @@ export default defineConfig({
     },
   },
   test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.js'],
     include: [
-      'src/**/*.unit.test.ts',
-      'src/**/*.api.test.ts',
-      'src/**/*.e2e.test.ts',
+      'src/**/*.unit.test.js',
+      'src/**/*.api.test.js',
+      'src/**/*.e2e.test.js',
     ],
   }
 })
