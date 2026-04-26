@@ -1,12 +1,31 @@
 name: CD - Build, Deploy and PR to Main
 
 on:
+  pull_request:
+    branches: [staging]
+
   push:
-    branches: [ "staging" ]
+    branches: [staging]
 
 jobs:
-  build-and-push:
+  staging-api-test:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+      - run: npm run test:api
+
+  staging-build-image:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [staging-api-test]
+
     steps:
       - uses: actions/checkout@v4
 
@@ -24,12 +43,14 @@ jobs:
         with:
           context: .
           push: true
-          tags: qarani/frontend-server:staging
+          tags: qarani/gamelift-frontend-server:staging
           build-args: |
             VITE_APP_PROFILE=staging
 
-  deploy:
-    needs: build-and-push
+
+  staging-deploy:
+    if: github.event_name == 'push'
+    needs: staging-build-image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,28 +60,31 @@ jobs:
           curl -fsSL https://tailscale.com/install.sh | sh
           sudo tailscale up --authkey ${{ secrets.TAILSCALE_AUTH_KEY }}
 
-      - name: Deploy to Staging via SSH over Tailscale
+      - name: Deploy to Staging via SSH over Tailscale..
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ secrets.STAGING_USERNAME }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
-            docker pull qarani/frontend-server:staging
-            docker stop frontend-server || true
-            docker rm frontend-server || true
+            docker pull qarani/gamelift-frontend-server:staging
+            docker stop gamelift-frontend-server || true
+            docker rm gamelift-frontend-server || true
             docker run -d \
-              --name frontend-server \
+              --name gamelift-frontend-server \
               --network aws-staging-network \
               -e VITE_API_BASE_URL=http://localhost:8080 \
               -e VITE_APP_PROFILE=staging \
               -e API_GATEWAY_HOST=api-gateway-staging \
-              -p 5173:80 \
-              qarani/frontend-server:staging
+              -p 8001:8001 \
+              qarani/gamelift-frontend-server:staging
 
-  open-pr-to-main:
-    needs: deploy
+
+  staging-open-pr-to-main:
+    if: github.event_name == 'push'
+    needs: staging-deploy
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:

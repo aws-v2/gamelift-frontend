@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:unit": "vitest run --reporter=verbose src/**/*.unit.test.*",
+    "test:api": "vitest run --reporter=verbose src/**/*.api.test.*",
+    "test": "vitest run",
+    "test:e2e": "cypress run --headless"
   },
   "dependencies": {
     "jszip": "^3.10.1",
@@ -15,7 +19,12 @@
     "vue-router": "^4.3.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.0",
-    "vite": "^5.4.0"
+    "@vitejs/plugin-vue": "^5.2.4",
+    "@vitest/coverage-v8": "^4.1.5",
+    "@vue/test-utils": "^2.4.8",
+    "cypress": "^15.14.1",
+    "jsdom": "^29.0.2",
+    "vite": "^5.4.0",
+    "vitest": "^4.1.5"
   }
 }
