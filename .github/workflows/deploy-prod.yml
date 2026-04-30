@@ -74,16 +74,17 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           passphrase:
           script: |
-            docker network create aws-prod-network || true
-            docker pull qarani/frontend-server:prod
-            docker stop frontend-server-prod || true
-            docker rm frontend-server-prod || true
-            docker run -d \
-              --name frontend-server-prod \
+            docker network create --attachable --driver overlay aws-prod-network  || true
+            docker pull qarani/gamelift-frontend-server:prod
+            docker service rm gamelift-frontend-server-prod || true
+
+            docker service create \
+              --name gamelift-frontend-server-prod \
               --network aws-prod-network \
-              -e VITE_API_BASE_URL=http://localhost:8080 \
-              -e VITE_APP_PROFILE=prod \
-              -e API_GATEWAY_HOST=api-gateway-prod \
-              -p 5173:80 \
-              qarani/frontend-server:prod
+              --env VITE_API_BASE_URL=http://api-gateway-prod:8080 \
+              --env VITE_APP_PROFILE=prod \
+              --env API_GATEWAY_HOST=api-gateway-prod \
+              --publish published=5173,target=80 \
+              --replicas 1 \
+              qarani/gamelift-frontend-server:prod
 
