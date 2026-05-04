@@ -73,7 +73,7 @@ jobs:
             docker run -d \
               --name gamelift-frontend-server \
               --network aws-staging-network \
-              -e VITE_API_BASE_URL=http://localhost:8080 \
+              -e VITE_API_BASE_URL=http://api-gateway-staging:8080 \
               -e VITE_APP_PROFILE=staging \
               -e API_GATEWAY_HOST=api-gateway-staging \
               -p 5174:80
