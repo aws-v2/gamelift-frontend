@@ -84,7 +84,7 @@ jobs:
               --env VITE_API_BASE_URL=http://api-gateway-prod:8080 \
               --env VITE_APP_PROFILE=prod \
               --env API_GATEWAY_HOST=api-gateway-prod \
-              --publish published=5173,target=80 \
+              --publish published=5174,target=80 \
               --replicas 1 \
               qarani/gamelift-frontend-server:prod
 
