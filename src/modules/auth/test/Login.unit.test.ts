@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest'
 
-describe('login API (placeholder)', () => {
+describe('Login.vue (placeholder)', () => {
   it('always passes', () => {
-    console.log('✔ placeholder test running')
-
+    console.log('✔ Login placeholder test running')
     expect(true).toBe(true)
   })
 })
