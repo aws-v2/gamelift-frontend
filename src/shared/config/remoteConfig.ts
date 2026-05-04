@@ -1,4 +1,5 @@
-// src/shared/config/remoteConfig.ts
+// import { baseLogger } from './logger'
+// const logger = baseLogger.child({ scope: 'remoteConfig' })
 
 export type RemoteConfig = {
   VITE_APP_PROFILE: string
@@ -19,9 +20,9 @@ export async function loadRemoteConfig(): Promise<RemoteConfig> {
     const res = await fetch(CONFIG_FILE, { cache: 'no-store' })
     if (!res.ok) throw new Error('config.json not found')
     cachedConfig = await res.json()
-    console.info('[config] Loaded remote config:', cachedConfig)
+    // logger.info('[config] Loaded remote config:', cachedConfig)
   } catch {
-    console.warn(`[config] Remote config unavailable at ${CONFIG_FILE}, falling back to import.meta.env`)
+    // logger.warn(`[config] Remote config unavailable at ${CONFIG_FILE}, falling back to import.meta.env`)
     cachedConfig = {
       VITE_APP_PROFILE:            import.meta.env.VITE_APP_PROFILE            ?? 'dev',
       VITE_API_BASE_URL:           import.meta.env.VITE_API_BASE_URL           ?? '',
@@ -39,7 +40,8 @@ export async function loadRemoteConfig(): Promise<RemoteConfig> {
 
 export function getRemoteConfig(): RemoteConfig {
   if (!cachedConfig) {
-    console.error('Remote config not loaded yet. Call loadRemoteConfig() first.')
+    loadRemoteConfig()
+    // logger.error('Remote config not loaded yet. Call loadRemoteConfig(1) first.')
   }
   return cachedConfig
 }
@@ -58,7 +60,7 @@ export function watchRemoteConfig(
     const previous = JSON.stringify(cachedConfig)
     const next = await loadRemoteConfig()
     if (JSON.stringify(next) !== previous) {
-      console.info('[config] Config changed, notifying...')
+      // logger.info('[config] Config changed, notifying...')
       onChange(next)
     }
   }, intervalMs)

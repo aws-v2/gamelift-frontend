@@ -25,16 +25,13 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Actions
   async function initAuth() {
-    authLogger.info('Initializing authentication state...')
-    const savedToken = localStorage.getItem('auth_token')
-    const savedEmail = localStorage.getItem('auth_email')
+    // authLogger.info('Initializing authentication state...')
+    const savedToken = localStorage.getItem('token')
 
-    if (savedToken && savedEmail) {
+    if (savedToken ) {
       token.value = savedToken
-      email.value = savedEmail
-      registrationComplete.value = localStorage.getItem(`auth_reg_complete_${savedEmail}`) === 'true'
+      registrationComplete.value = localStorage.getItem(`auth_reg_complete_`) === 'true'
       isAuthenticated.value = true
-      authLogger.info('Session restored for:', savedEmail)
     } else {
       isAuthenticated.value = false
       authLogger.info('No session found.')
@@ -79,7 +76,6 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
     async function register(payload: any) {
-    authLogger.debug('-___________________________________')
 
     const response = await apiClient.post<any>('/auth/register', payload)
     const inner = response.data.data  // ✅

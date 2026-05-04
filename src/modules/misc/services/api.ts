@@ -1,5 +1,6 @@
 import apiClient from '@/shared/api/apiClient'
-
+import { baseLogger } from '@/shared/config/logger'
+const logger = baseLogger.child({scope:"misc-api"}) 
 /**
  * Extract API response safely (handles ApiResponse wrapper)
  */
@@ -14,6 +15,8 @@ function unwrap(res: any) {
 
 export async function fetchGames() {
   const res = await apiClient.get('/gamelift/games')
+  logger.info("Fetching all the games")
+
   return unwrap(res)
 }
 
@@ -22,6 +25,9 @@ export async function initUpload(gameData: any) {
     '/gamelift/games/init-upload',
     gameData
   )
+  logger.info("Init uplade complete")
+
+
 
   return unwrap(res)
 }

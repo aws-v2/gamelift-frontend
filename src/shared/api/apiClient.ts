@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { useAuthStore } from '@/modules/auth/store/authStore'
 import { featureFlags } from '@/shared/config/featureFlags'
-
+import { baseLogger } from '../config/logger'
+const logger = baseLogger.child({scope:"api-client"})
 const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
@@ -48,8 +49,11 @@ apiClient.stream = async (url: string, body?: unknown): Promise<ReadableStreamDe
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
+    logger.info("this is the authorizationtoken: ", authStore.token)
+
   if (authStore.token) {
     headers['Authorization'] = `Bearer ${authStore.token}`
+    logger.info("this is the authorizationtoken: ", authStore.token)
     headers['X-Request-Source']='web-gamelift'
 
   }

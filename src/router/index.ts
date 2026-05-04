@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/modules/auth/store/authStore.js'
-import streamingRoutes from '@/modules/streaming/routes.js'
-import profileRoutes from '@/modules/profile/routes.js'
-import miscRoutes from '@/modules/misc/routes.js'
-import authRoutes from '@/modules/auth/routes.js'
+import { useAuthStore } from '@/modules/auth/store/authStore'
+import streamingRoutes from '@/modules/streaming/routes'
+import profileRoutes from '@/modules/profile/routes'
+import miscRoutes from '@/modules/misc/routes'
+import authRoutes from '@/modules/auth/routes'
 
 
 const router = createRouter({
