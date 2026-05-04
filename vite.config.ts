@@ -11,6 +11,11 @@ export default defineConfig({
   },
   server: {
     port: 8001,
+    allowedHosts: [
+      "4c95-105-164-119-216.ngrok-free.app",
+      "localhost",
+      "[IP_ADDRESS]"
+    ],
     proxy: {
       '/login': {
         target: 'http://localhost:8080',
