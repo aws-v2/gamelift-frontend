@@ -36,7 +36,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { connectWebSocket, sendMessage, disconnectWebSocket } from '@/modules/streaming/services/ws'
 import { fetchGameManifest } from '@/modules/streaming/services/api'
 import * as THREE from 'three'
-
+import { baseLogger } from '@/shared/config/logger'
+const logger = baseLogger.child({scope:"game-view"})
 const route = useRoute()
 const router = useRouter()
 const threeContainer = ref(null)
@@ -56,6 +57,7 @@ const keysPressed = {}
 
 // --- Three.js Setup ---
 function initThree() {
+  logger.info("Initiliazing three.js")
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0x050510)
 
@@ -70,6 +72,7 @@ function initThree() {
   renderer.setPixelRatio(window.devicePixelRatio)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   threeContainer.value.appendChild(renderer.domElement)
+  logger.info("Setting up lightingfor three.js three.js")
 
   // LIGHTING
   scene.add(new THREE.AmbientLight(0xffffff, 0.8))
@@ -81,6 +84,8 @@ function initThree() {
 }
 
 function onWindowResize() {
+  logger.info("Window size event listener triggered")
+
   if (!camera || !renderer || !threeContainer.value) return
   const width = threeContainer.value.clientWidth
   const height = threeContainer.value.clientHeight
@@ -91,6 +96,9 @@ function onWindowResize() {
 
 // --- Pointer Lock & Input ---
 function setupPointerLock(playerMesh) {
+  logger.info("Setting up the pointer lock!")
+
+
   const container = threeContainer.value
   container.addEventListener('click', () => container.requestPointerLock())
 
