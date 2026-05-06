@@ -35,6 +35,7 @@ import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { connectWebSocket, sendMessage, disconnectWebSocket } from '@/modules/streaming/services/ws'
 import { fetchGameManifest } from '@/modules/streaming/services/api'
+import apiClient from '@/shared/api/apiClient'
 import * as THREE from 'three'
 import { baseLogger } from '@/shared/config/logger'
 const logger = baseLogger.child({scope:"game-view"})
@@ -181,14 +182,25 @@ function handleServerMessage(event) {
   }
 }
 
-// --- Input Handling ---
+
+const sessionId = ref(null)
+
 const onKeyDown = (e) => {
   if (loading.value) return
-  sendMessage({ type: 'keydown', key: e.key })
+  sendMessage({
+    type: 'game_input',
+    session_id: sessionId.value,  // your current session id
+    data: { type: 'keydown', key: e.key }
+  })
 }
+
 const onKeyUp = (e) => {
   if (loading.value) return
-  sendMessage({ type: 'keyup', key: e.key })
+  sendMessage({
+    type: 'game_input',
+    session_id: sessionId.value,
+    data: { type: 'keyup', key: e.key }
+  })
 }
 
 function goBack() { cleanup(); router.push('/home') }
@@ -206,17 +218,106 @@ onMounted(async () => {
   window.addEventListener('keyup', onKeyUp)
 
   initThree()
-  await loadGame()
   tick()
 
-  const socket = connectWebSocket()
-  socket.addEventListener('open', () => {
-    wsConnected.value = true
-    sendMessage({ type: 'join', gameId: route.params.id })
-  })
-  socket.addEventListener('close', () => { wsConnected.value = false })
-  socket.addEventListener('message', handleServerMessage)
+  try {
+  console.log('initGameSession res101')
+
+    const wsUrl = await initGameSession()
+  console.log('initGameSession res11', wsUrl)
+
+    await loadGame()
+
+    const socket = connectWebSocket(wsUrl)
+    socket.addEventListener('open', () => {
+      wsConnected.value = true
+      sendMessage({ type: 'join', session_id: sessionId.value,  data: { gameId: route.params.id }})
+    })
+    socket.addEventListener('close', () => { wsConnected.value = false })
+    socket.addEventListener('message', handleServerMessage)
+
+  } catch (err) {
+    console.error('[game] session init failed', err)
+    // surface error to user however you handle it in your UI
+  }
 })
+
+async function initGameSession() {
+  const gameId = route.params.id
+
+  // 1. Provision VM
+  const res = await apiClient.post(`/gamelift/games/${gameId}/session`,{
+	"game_id":gameId,
+	"game_image":"string"
+  })
+
+
+  const agentWsUrl = res.data.AgentWSURL
+  const agentToken = res.data.Token
+  const status = res.data.Status
+  sessionId.value = res.data.ID
+  const userId = res.data.UserID
+
+
+ 
+  // Axios only throws on non-2xx, so no need for res.ok
+  const { AgentWSURL, Token } = res.data
+
+  // 2. If already ready
+  if (AgentWSURL) {
+    return buildWsUrl(AgentWSURL, Token)
+  }
+
+  // 3. Otherwise poll
+  return await pollUntilReady(gameId, agentToken)
+}
+
+
+
+
+async function pollUntilReady(
+  gameId,
+  token,
+  intervalMs = 1500,
+  timeoutMs = 60_000
+) {
+  const deadline = Date.now() + timeoutMs
+
+  while (Date.now() < deadline) {
+    await sleep(intervalMs)
+
+    const res = await fetch(`/api/v1/gamelift/games/${gameId}/session/status`)
+    if (!res.ok) continue
+
+    const { status, ws_url, token: updatedToken } = await res.json()
+
+    if (status === 'ready' && ws_url) {
+      return buildWsUrl(ws_url, updatedToken ?? token)
+    }
+  }
+
+  throw new Error(`timed out waiting for game VM to be ready`)
+}
+
+function buildWsUrl(wsUrl, token) {
+  console.log('initGameSession res11', wsUrl)
+
+  const url = new URL(wsUrl)
+  url.searchParams.set('token', token)
+  return url.toString()
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+
+
+
+
+
+
+
 
 onBeforeUnmount(() => {
   cleanup()
