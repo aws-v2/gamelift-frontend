@@ -311,14 +311,6 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-
-
-
-
-
-
-
-
 onBeforeUnmount(() => {
   cleanup()
   window.removeEventListener('beforeunload', cleanup)
