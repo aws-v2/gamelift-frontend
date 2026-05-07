@@ -244,60 +244,63 @@ onMounted(async () => {
 
 async function initGameSession() {
   const gameId = route.params.id
+  const BACKEND_URL = "http://localhost:8091/api/v1" 
 
   // 1. Provision VM
-  const res = await apiClient.post(`/gamelift/games/${gameId}/session`,{
-	"game_id":gameId,
-	"game_image":"string"
+  const res = await apiClient.post(`/gamelift/games/${gameId}/session`, {
+    game_id: gameId,
+    game_image: "string"
   })
 
+  const { AgentWSURL, Token, ID } = res.data
+  sessionId.value = ID
 
-  const agentWsUrl = res.data.AgentWSURL
-  const agentToken = res.data.Token
-  const status = res.data.Status
-  sessionId.value = res.data.ID
-  const userId = res.data.UserID
-
-
- 
-  // Axios only throws on non-2xx, so no need for res.ok
-  const { AgentWSURL, Token } = res.data
-
-  // 2. If already ready
+  // 2. Already provisioned (e.g. reconnecting)
   if (AgentWSURL) {
     return buildWsUrl(AgentWSURL, Token)
   }
 
-  // 3. Otherwise poll
-  return await pollUntilReady(gameId, agentToken)
-}
+  // 3. Pending — wait for backend to push agent_url via SSE
+  return new Promise((resolve, reject) => {
+    // FIX: Use the full backend URL here
+    const sse = new EventSource(`${BACKEND_URL}/gamelift/games/${gameId}/session/events`)  
 
+    const timeout = setTimeout(() => {
+      sse.close()
+      reject(new Error('Provisioning timed out'))
+    }, 5 * 60 * 1000) // 5 min
 
+    sse.onmessage = (event) => {
+      const data = JSON.parse(event.data)
 
+      if (data.error) {
+        clearTimeout(timeout)
+        sse.close()
+        reject(new Error(data.error))
+        return
+      }
 
-async function pollUntilReady(
-  gameId,
-  token,
-  intervalMs = 1500,
-  timeoutMs = 60_000
-) {
-  const deadline = Date.now() + timeoutMs
-
-  while (Date.now() < deadline) {
-    await sleep(intervalMs)
-
-    const res = await fetch(`/api/v1/gamelift/games/${gameId}/session/status`)
-    if (!res.ok) continue
-
-    const { status, ws_url, token: updatedToken } = await res.json()
-
-    if (status === 'ready' && ws_url) {
-      return buildWsUrl(ws_url, updatedToken ?? token)
+      if (data.agent_url) {
+        clearTimeout(timeout)
+        sse.close()
+        resolve(buildWsUrl(data.agent_url, Token))
+      }
     }
-  }
 
-  throw new Error(`timed out waiting for game VM to be ready`)
+    sse.onerror = (err) => {
+      console.error("SSE Error:", err)
+      clearTimeout(timeout)
+      sse.close()
+      reject(new Error('SSE connection lost'))
+    }
+  })
 }
+
+
+
+
+
+
 
 function buildWsUrl(wsUrl, token) {
   console.log('initGameSession res11', wsUrl)
