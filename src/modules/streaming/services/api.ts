@@ -23,7 +23,7 @@ export async function initUpload(gameData: any) {
     gameData
   )
 
-  return unwrap(res)
+  return unwrap(res.data)
 }
 
 export async function fetchGameManifest(gameId: string) {

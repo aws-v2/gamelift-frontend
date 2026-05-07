@@ -3,10 +3,10 @@ let socket = null
 export function connectWebSocket(baseUrl = 'ws://localhost:8080/api/v1/ws') {
   // Clean up any existing connection first
   if (socket) {
-    try { socket.close(1000, 'reconnecting') } catch (_) {}
+    try { socket.close(1000, 'reconnecting') } catch (_) { }
     socket = null
   }
-
+  console.log("this is the base url: ", baseUrl)
   const token = localStorage.getItem('token')
   const url = token ? `${baseUrl}?token=${token}` : baseUrl
   socket = new WebSocket(url)
@@ -25,16 +25,25 @@ export function connectWebSocket(baseUrl = 'ws://localhost:8080/api/v1/ws') {
 
   socket.addEventListener('message', (event) => {
     try {
-      const data = JSON.parse(event.data)
-      // Only log if it's actual game state from Godot (contains x or anim)
-      if (data.x !== undefined || data.anim !== undefined) {
-        console.log('[GODOT STATE RECEIVED]', data)
-      }
-    } catch (e) {
-      // Ignore non-JSON or other messages
-    }
-  })
+      const msg = JSON.parse(event.data)
 
+      switch (msg.type) {
+        case 'game_ready':
+          console.log('[WS] game ready, session:', msg.session_id)
+          // set loading.value = false here
+          break
+
+        case 'game_state':
+          // msg.data is the raw JSON from Godot
+          console.log('[GODOT STATE]', msg.data)
+          break
+
+        case 'game_closed':
+          console.warn('[WS] game closed:', msg.reason)
+          break
+      }
+    } catch (e) { }
+  })
   return socket
 }
 
@@ -49,7 +58,7 @@ export function disconnectWebSocket() {
     // Send a proper close frame with code 1000 (normal closure)
     try {
       socket.close(1000, 'user left')
-    } catch (_) {}
+    } catch (_) { }
     socket = null
   }
 }
