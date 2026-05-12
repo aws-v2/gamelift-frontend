@@ -46,7 +46,7 @@ const threeContainer = ref(null)
 const wsConnected = ref(false)
 const loading = ref(true)
 const manifest = ref(null)
-
+const ws = ref(null)
 let renderer, scene, camera
 let levelScene = null
 
@@ -115,19 +115,37 @@ function setupPointerLock(playerMesh) {
   })
 }
 
-// --- Asset Loading & Manifest Logic ---
-async function loadGame() {
-  try {
-    console.log('[Game] Fetching manifest for game:', route.params.id)
-    manifest.value = await fetchGameManifest(route.params.id)
 
-    console.log('[Game] Asset loading bypassed for debug mode.')
-    loading.value = false
+
+async function loadGame(agentUrl) {
+  try {
+    console.log('[Game] connecting to agent:', agentUrl)
+
+    // connect directly to agent WS
+    ws.value = new WebSocket(`${agentUrl}/game`)
+
+    ws.value.onopen = () => {
+      console.log('[Game] agent WS connected:', agentUrl)
+      loading.value = false
+    }
+
+    ws.value.onmessage = (event) => {
+      console.log('[Game] agent message:', event.data)
+      // handle game stream data here
+    }
+
+    ws.value.onerror = (err) => {
+      console.error('[Game] agent WS error:', err)
+    }
+
+    ws.value.onclose = () => {
+      console.warn('[Game] agent WS closed')
+    }
+
   } catch (err) {
-    console.error('[Game] Error loading gear:', err)
+    console.error('[Game] failed to connect to agent:', err)
   }
 }
-
 function setupEntity(name, mesh) {
   entities.set(name, {
     mesh,
@@ -276,11 +294,6 @@ async function initGameSession() {
   const token = authStore.token
 
 
-
-
-
-
-
   // 3. Pending — wait for backend to push agent_url via SSE
   return new Promise((resolve, reject) => {
     const sse = new EventSource(
@@ -312,6 +325,7 @@ async function initGameSession() {
 
       if (data.agent_url) {
         console.log(`[SSE] agent_url received: ${data.agent_url}`)
+        loadGame(data.agent_url)
         resolved = true  // 👈
         clearTimeout(timeout)
         sse.close()
@@ -344,9 +358,7 @@ function buildWsUrl(wsUrl, token) {
   return url.toString()
 }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
+ 
 
 onBeforeUnmount(() => {
   cleanup()
