@@ -264,7 +264,12 @@ onMounted(async () => {
 
 async function initGameSession() {
   const gameId = route.params.id
-  const BACKEND_URL = "http://localhost:8080/api/v1"
+  export type ServiceEnv = 'dev' | 'staging' | 'prod'
+  
+  const config = getRemoteConfig()
+  const appProfile = config.VITE_APP_PROFILE as ServiceEnv
+
+  const BACKEND_URL = `http://${config.VITE_API_BASE_URL}/api/v1`
 
   console.log(`[initGameSession] starting for gameId=${gameId}`)
 
