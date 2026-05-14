@@ -81,7 +81,6 @@ jobs:
               -p 5174:80 \
               qarani/gamelift-frontend-server:staging-${{ github.sha }}
 
-
   staging-open-pr-to-main:
     if: github.event_name == 'push'
     needs: staging-deploy
