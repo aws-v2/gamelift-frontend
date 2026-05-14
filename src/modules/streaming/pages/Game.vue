@@ -264,7 +264,7 @@ onMounted(async () => {
 
 async function initGameSession() {
   const gameId = route.params.id
-  const BACKEND_URL = "http://localhost:8091/api/v1"
+  const BACKEND_URL = "http://localhost:8080/api/v1"
 
   console.log(`[initGameSession] starting for gameId=${gameId}`)
 
@@ -292,57 +292,98 @@ async function initGameSession() {
 
   const authStore = useAuthStore()
   const token = authStore.token
+// 3. Pending — wait for backend to push agent_url via SSE
+return new Promise((resolve, reject) => {
+  const sse = new EventSource(
+    `${BACKEND_URL}/gamelift/fleet/instances/${ID}/events?token=${token}`
+  )
 
+  console.log(`[SSE] connection opened: ${sse.url}`)
+  console.log(`[SSE] token being used:`, token)
 
-  // 3. Pending — wait for backend to push agent_url via SSE
-  return new Promise((resolve, reject) => {
-    const sse = new EventSource(
-      `${BACKEND_URL}/gamelift/fleet/instances/${ID}/events?token=${token}`
-    )
+  let resolved = false
 
-    console.log(`[SSE] connection opened: ${sse.url}`)
-    console.log(`[SSE] token being used:`, token)  // add this before new EventSource
+  const cleanup = () => {
+    clearTimeout(timeout)
+    sse.close()
+  }
 
-    let resolved = false  // 👈
+  const timeout = setTimeout(() => {
+    console.warn(`[SSE] timed out after 5min for instanceId=${ID}`)
 
-    const timeout = setTimeout(() => {
-      console.warn(`[SSE] timed out after 5min for instanceId=${ID}`)
-      sse.close()
-      reject(new Error('Provisioning timed out'))
-    }, 5 * 60 * 1000)
+    cleanup()
 
-    sse.onmessage = (event) => {
-      console.log(`[SSE] message received:`, event.data)
-      const data = JSON.parse(event.data)
+    reject(new Error('Provisioning timed out'))
+  }, 5 * 60 * 1000)
 
-      if (data.error) {
-        console.error(`[SSE] server error:`, data.error)
-        clearTimeout(timeout)
-        sse.close()
-        reject(new Error(data.error))
-        return
-      }
+  sse.onopen = () => {
+    console.log(`[SSE] connection established successfully`)
+  }
 
-      if (data.agent_url) {
-        console.log(`[SSE] agent_url received: ${data.agent_url}`)
-        loadGame(data.agent_url)
-        resolved = true  // 👈
-        clearTimeout(timeout)
-        sse.close()
-        resolve(buildWsUrl(data.agent_url, Token))
-      }
+  sse.onmessage = (event) => {
+    console.log(`[SSE] message received:`, event.data)
+
+    let data
+
+    try {
+      data = JSON.parse(event.data)
+    } catch (err) {
+      console.error(`[SSE] invalid JSON payload`, err)
+      cleanup()
+      reject(new Error('Invalid SSE payload'))
+      return
     }
-    sse.onopen = () => {
-      console.log(`[SSE] connection established successfully`)
+
+    //
+    // ERROR EVENT
+    //
+    if (data.error) {
+      console.error(`[SSE] provisioning failed:`, data.error)
+
+      cleanup()
+
+      reject(new Error(data.error))
+
+      return
     }
-    sse.onerror = (err) => {
-      if (resolved) return  // 👈 server closed connection after sending — not a real error
-      console.error(`[SSE] connection error for instanceId=${ID}:`, err)
-      clearTimeout(timeout)
-      sse.close()
-      reject(new Error('SSE connection lost'))
+
+    //
+    // SUCCESS EVENT
+    //
+    if (data.agent_url) {
+      console.log(`[SSE] agent_url received: ${data.agent_url}`)
+
+      loadGame(data.agent_url)
+
+      resolved = true
+
+      cleanup()
+
+      resolve(buildWsUrl(data.agent_url, Token))
+
+      return
     }
-  })
+
+    //
+    // UNKNOWN EVENT
+    //
+    console.warn(`[SSE] unknown event payload`, data)
+  }
+
+  sse.onerror = (err) => {
+    // browser fires error when connection closes normally
+    if (resolved) {
+      console.log(`[SSE] connection closed after successful resolution`)
+      return
+    }
+
+    console.error(`[SSE] connection error for instanceId=${ID}:`, err)
+
+    cleanup()
+
+    reject(new Error('SSE connection lost'))
+  }
+})
 
 
 }
