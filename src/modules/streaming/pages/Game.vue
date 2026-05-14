@@ -38,6 +38,8 @@ import { fetchGameManifest } from '@/modules/streaming/services/api'
 import apiClient from '@/shared/api/apiClient'
 import * as THREE from 'three'
 import { baseLogger } from '@/shared/config/logger'
+import { getRemoteConfig } from '@/shared/config/remoteConfig'
+
 import { useAuthStore } from '@/modules/auth/store/authStore'
 const logger = baseLogger.child({ scope: "game-view" })
 const route = useRoute()
@@ -264,7 +266,10 @@ onMounted(async () => {
 
 async function initGameSession() {
   const gameId = route.params.id
-  const BACKEND_URL = "http://localhost:8080/api/v1"
+  
+  const config = getRemoteConfig()
+
+  const BACKEND_URL = `http://${config.VITE_API_BASE_URL}/api/v1`
 
   console.log(`[initGameSession] starting for gameId=${gameId}`)
 
