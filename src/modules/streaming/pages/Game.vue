@@ -38,6 +38,8 @@ import { fetchGameManifest } from '@/modules/streaming/services/api'
 import apiClient from '@/shared/api/apiClient'
 import * as THREE from 'three'
 import { baseLogger } from '@/shared/config/logger'
+import { getRemoteConfig } from '@/shared/config/featureFlags'
+
 import { useAuthStore } from '@/modules/auth/store/authStore'
 const logger = baseLogger.child({ scope: "game-view" })
 const route = useRoute()
@@ -264,10 +266,8 @@ onMounted(async () => {
 
 async function initGameSession() {
   const gameId = route.params.id
-  export type ServiceEnv = 'dev' | 'staging' | 'prod'
   
   const config = getRemoteConfig()
-  const appProfile = config.VITE_APP_PROFILE as ServiceEnv
 
   const BACKEND_URL = `http://${config.VITE_API_BASE_URL}/api/v1`
 
