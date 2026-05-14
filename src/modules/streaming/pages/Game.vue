@@ -38,7 +38,7 @@ import { fetchGameManifest } from '@/modules/streaming/services/api'
 import apiClient from '@/shared/api/apiClient'
 import * as THREE from 'three'
 import { baseLogger } from '@/shared/config/logger'
-import { getRemoteConfig } from '@/shared/config/featureFlags'
+import { getRemoteConfig } from '@/shared/config/remoteConfig'
 
 import { useAuthStore } from '@/modules/auth/store/authStore'
 const logger = baseLogger.child({ scope: "game-view" })
