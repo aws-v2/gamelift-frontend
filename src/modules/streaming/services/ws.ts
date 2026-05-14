@@ -2,6 +2,8 @@ let socket = null
 
 export function connectWebSocket(baseUrl = 'ws://localhost:8080/api/v1/ws') {
   // Clean up any existing connection first
+  const debugWS="ws://localhost:8080/api/v1/ws"
+  baseUrl=debugWS
   if (socket) {
     try { socket.close(1000, 'reconnecting') } catch (_) { }
     socket = null

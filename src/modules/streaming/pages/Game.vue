@@ -38,14 +38,15 @@ import { fetchGameManifest } from '@/modules/streaming/services/api'
 import apiClient from '@/shared/api/apiClient'
 import * as THREE from 'three'
 import { baseLogger } from '@/shared/config/logger'
-const logger = baseLogger.child({scope:"game-view"})
+import { useAuthStore } from '@/modules/auth/store/authStore'
+const logger = baseLogger.child({ scope: "game-view" })
 const route = useRoute()
 const router = useRouter()
 const threeContainer = ref(null)
 const wsConnected = ref(false)
 const loading = ref(true)
 const manifest = ref(null)
-
+const ws = ref(null)
 let renderer, scene, camera
 let levelScene = null
 
@@ -60,6 +61,7 @@ const keysPressed = {}
 function initThree() {
   logger.info("Initiliazing three.js")
   scene = new THREE.Scene()
+
   scene.background = new THREE.Color(0x050510)
 
   const width = threeContainer.value.clientWidth || 800
@@ -113,19 +115,37 @@ function setupPointerLock(playerMesh) {
   })
 }
 
-// --- Asset Loading & Manifest Logic ---
-async function loadGame() {
-  try {
-    console.log('[Game] Fetching manifest for game:', route.params.id)
-    manifest.value = await fetchGameManifest(route.params.id)
 
-    console.log('[Game] Asset loading bypassed for debug mode.')
-    loading.value = false
+
+async function loadGame(agentUrl) {
+  try {
+    console.log('[Game] connecting to agent:', agentUrl)
+
+    // connect directly to agent WS
+    ws.value = new WebSocket(`${agentUrl}/game`)
+
+    ws.value.onopen = () => {
+      console.log('[Game] agent WS connected:', agentUrl)
+      loading.value = false
+    }
+
+    ws.value.onmessage = (event) => {
+      console.log('[Game] agent message:', event.data)
+      // handle game stream data here
+    }
+
+    ws.value.onerror = (err) => {
+      console.error('[Game] agent WS error:', err)
+    }
+
+    ws.value.onclose = () => {
+      console.warn('[Game] agent WS closed')
+    }
+
   } catch (err) {
-    console.error('[Game] Error loading gear:', err)
+    console.error('[Game] failed to connect to agent:', err)
   }
 }
-
 function setupEntity(name, mesh) {
   entities.set(name, {
     mesh,
@@ -221,17 +241,17 @@ onMounted(async () => {
   tick()
 
   try {
-  console.log('initGameSession res101')
+    console.log('initGameSession res101')
 
     const wsUrl = await initGameSession()
-  console.log('initGameSession res11', wsUrl)
+    console.log('initGameSession res11', wsUrl)
 
-    await loadGame()
+    // await loadGame()
 
     const socket = connectWebSocket(wsUrl)
     socket.addEventListener('open', () => {
       wsConnected.value = true
-      sendMessage({ type: 'join', session_id: sessionId.value,  data: { gameId: route.params.id }})
+      sendMessage({ type: 'join', session_id: sessionId.value, data: { gameId: route.params.id } })
     })
     socket.addEventListener('close', () => { wsConnected.value = false })
     socket.addEventListener('message', handleServerMessage)
@@ -244,7 +264,9 @@ onMounted(async () => {
 
 async function initGameSession() {
   const gameId = route.params.id
-  const BACKEND_URL = "http://localhost:8091/api/v1" 
+  const BACKEND_URL = "http://localhost:8080/api/v1"
+
+  console.log(`[initGameSession] starting for gameId=${gameId}`)
 
   // 1. Provision VM
   const res = await apiClient.post(`/gamelift/games/${gameId}/session`, {
@@ -252,52 +274,119 @@ async function initGameSession() {
     game_image: "string"
   })
 
+  console.log(`[initGameSession] session response:`, res.data)
+
   const { AgentWSURL, Token, ID } = res.data
   sessionId.value = ID
 
   // 2. Already provisioned (e.g. reconnecting)
   if (AgentWSURL) {
+    console.log(`[initGameSession] already provisioned, agent_url=${AgentWSURL}`)
     return buildWsUrl(AgentWSURL, Token)
   }
 
-  // 3. Pending — wait for backend to push agent_url via SSE
-  return new Promise((resolve, reject) => {
-    // FIX: Use the full backend URL here
-    const sse = new EventSource(`${BACKEND_URL}/gamelift/games/${gameId}/session/events`)  
+  console.log(`[initGameSession] pending — opening SSE for instanceId=${ID}`)
 
-    const timeout = setTimeout(() => {
-      sse.close()
-      reject(new Error('Provisioning timed out'))
-    }, 5 * 60 * 1000) // 5 min
 
-    sse.onmessage = (event) => {
-      const data = JSON.parse(event.data)
 
-      if (data.error) {
-        clearTimeout(timeout)
-        sse.close()
-        reject(new Error(data.error))
-        return
-      }
 
-      if (data.agent_url) {
-        clearTimeout(timeout)
-        sse.close()
-        resolve(buildWsUrl(data.agent_url, Token))
-      }
+  const authStore = useAuthStore()
+  const token = authStore.token
+// 3. Pending — wait for backend to push agent_url via SSE
+return new Promise((resolve, reject) => {
+  const sse = new EventSource(
+    `${BACKEND_URL}/gamelift/fleet/instances/${ID}/events?token=${token}`
+  )
+
+  console.log(`[SSE] connection opened: ${sse.url}`)
+  console.log(`[SSE] token being used:`, token)
+
+  let resolved = false
+
+  const cleanup = () => {
+    clearTimeout(timeout)
+    sse.close()
+  }
+
+  const timeout = setTimeout(() => {
+    console.warn(`[SSE] timed out after 5min for instanceId=${ID}`)
+
+    cleanup()
+
+    reject(new Error('Provisioning timed out'))
+  }, 5 * 60 * 1000)
+
+  sse.onopen = () => {
+    console.log(`[SSE] connection established successfully`)
+  }
+
+  sse.onmessage = (event) => {
+    console.log(`[SSE] message received:`, event.data)
+
+    let data
+
+    try {
+      data = JSON.parse(event.data)
+    } catch (err) {
+      console.error(`[SSE] invalid JSON payload`, err)
+      cleanup()
+      reject(new Error('Invalid SSE payload'))
+      return
     }
 
-    sse.onerror = (err) => {
-      console.error("SSE Error:", err)
-      clearTimeout(timeout)
-      sse.close()
-      reject(new Error('SSE connection lost'))
+    //
+    // ERROR EVENT
+    //
+    if (data.error) {
+      console.error(`[SSE] provisioning failed:`, data.error)
+
+      cleanup()
+
+      reject(new Error(data.error))
+
+      return
     }
-  })
+
+    //
+    // SUCCESS EVENT
+    //
+    if (data.agent_url) {
+      console.log(`[SSE] agent_url received: ${data.agent_url}`)
+
+      loadGame(data.agent_url)
+
+      resolved = true
+
+      cleanup()
+
+      resolve(buildWsUrl(data.agent_url, Token))
+
+      return
+    }
+
+    //
+    // UNKNOWN EVENT
+    //
+    console.warn(`[SSE] unknown event payload`, data)
+  }
+
+  sse.onerror = (err) => {
+    // browser fires error when connection closes normally
+    if (resolved) {
+      console.log(`[SSE] connection closed after successful resolution`)
+      return
+    }
+
+    console.error(`[SSE] connection error for instanceId=${ID}:`, err)
+
+    cleanup()
+
+    reject(new Error('SSE connection lost'))
+  }
+})
+
+
 }
-
-
-
 
 
 
@@ -310,9 +399,7 @@ function buildWsUrl(wsUrl, token) {
   return url.toString()
 }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
+ 
 
 onBeforeUnmount(() => {
   cleanup()
