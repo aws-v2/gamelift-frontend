@@ -28,6 +28,7 @@ const STAGING_DEFAULTS: RemoteConfig = {
   VITE_FF_SERVICE_FARGATE:        "staging",
   VITE_FF_SERVICE_EC2:            "staging",
   VITE_FF_SERVICE_IDENTITY:       "staging",
+  API_GATEWAY_HOST:               "api-gateway-staging",
   VITE_FF_SERVICE_CONFIG:         "staging",
   VITE_FF_SERVICE_BILLING:        "staging",
   VITE_FF_SERVICE_AUTH:           "staging",
@@ -45,6 +46,7 @@ const ENV_DEFAULTS: RemoteConfig = {
   VITE_FF_SERVICE_GAMELIFT:     import.meta.env.VITE_FF_SERVICE_GAMELIFT     ?? 'dev',
   VITE_FF_SERVICE_BILLING:      import.meta.env.VITE_FF_SERVICE_BILLING      ?? 'dev',
   VITE_FF_SERVICE_AUTH:         import.meta.env.VITE_FF_SERVICE_AUTH         ?? 'dev',
+  API_GATEWAY_HOST:             import.meta.env.API_GATEWAY_HOST             ?? 'localhost',
 }
 
 function resolveFallback(): RemoteConfig {

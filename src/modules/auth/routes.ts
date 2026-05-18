@@ -6,11 +6,11 @@ import ResetPassword from '@/modules/auth/pages/ResetPassword.vue'
 import VerifyEmail from '@/modules/auth/pages/VerifyEmail.vue'
 
 const routes = [
-  { path: '/login', name: 'Login', component: Login },
-  { path: '/register', name: 'Register', component: Register },
-  { path: '/forgot-password', name: 'ForgotPassword', component: ForgotPassword },
-  { path: '/reset-password', name: 'ResetPassword', component: ResetPassword },
-  { path: '/verify-email', name: 'VerifyEmail', component: VerifyEmail },
+  { path: '/login', name: 'Login', component: Login, meta: { publicOnly: true } },
+  { path: '/register', name: 'Register', component: Register, meta: { publicOnly: true } },
+  { path: '/forgot-password', name: 'ForgotPassword', component: ForgotPassword, meta: { publicOnly: true } },
+  { path: '/reset-password', name: 'ResetPassword', component: ResetPassword, meta: { publicOnly: true } },
+  { path: '/verify-email', name: 'VerifyEmail', component: VerifyEmail, meta: { publicOnly: true } },
 ]
 
 export default routes
