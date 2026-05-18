@@ -41,6 +41,7 @@ import { baseLogger } from '@/shared/config/logger'
 import { getRemoteConfig } from '@/shared/config/remoteConfig'
 
 import { useAuthStore } from '@/modules/auth/store/authStore'
+import { featureFlags } from '@/shared/config/featureFlags'
 const logger = baseLogger.child({ scope: "game-view" })
 const route = useRoute()
 const router = useRouter()
@@ -267,9 +268,7 @@ onMounted(async () => {
 async function initGameSession() {
   const gameId = route.params.id
   
-  const config = getRemoteConfig()
-
-  const BACKEND_URL = `http://${config.VITE_API_BASE_URL}/api/v1`
+  const BACKEND_URL = await featureFlags.getServiceUrl('gamelift')
 
   console.log(`[initGameSession] starting for gameId=${gameId}`)
 
@@ -300,7 +299,7 @@ async function initGameSession() {
 // 3. Pending — wait for backend to push agent_url via SSE
 return new Promise((resolve, reject) => {
   const sse = new EventSource(
-    `${BACKEND_URL}/gamelift/fleet/instances/${ID}/events?token=${token}`
+    `${BACKEND_URL}gamelift/fleet/instances/${ID}/events?token=${token}`
   )
 
   console.log(`[SSE] connection opened: ${sse.url}`)

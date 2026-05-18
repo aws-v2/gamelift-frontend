@@ -85,9 +85,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/modules/auth/store/authStore'
 import { fetchGames } from '@/modules/misc/services/api'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const games = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -114,7 +116,7 @@ function viewDetails(id) {
 }
 
 function handleLogout() {
-  localStorage.removeItem('token')
+  authStore.logout()
   router.push('/login')
 }
 

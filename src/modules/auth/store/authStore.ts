@@ -14,7 +14,7 @@ export interface LoginResponse {
 
 export const useAuthStore = defineStore('auth', () => {
   // State
-  const token = ref<string | null>(localStorage.getItem('auth_token'))
+  const token = ref<string | null>(localStorage.getItem('token'))
   const email = ref<string | null>(localStorage.getItem('auth_email'))
   const registrationComplete = ref(false)
   const isAuthenticated = ref<boolean | null>(null)
@@ -44,7 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null 
     registrationComplete.value = false
     isAuthenticated.value = false
-    localStorage.removeItem('auth_token')
+    localStorage.removeItem('token')
     localStorage.removeItem('auth_email')
   }
   async function verifyPayment(payload: any) {
@@ -100,7 +100,7 @@ export const useAuthStore = defineStore('auth', () => {
       registrationComplete.value = localStorage.getItem(`auth_reg_complete_${email.value}`) === 'true'
     }
 
-    localStorage.setItem('auth_token', token.value || '')
+    localStorage.setItem('token', token.value || '')
     localStorage.setItem('auth_email', email.value || '') 
 
     if (email.value && registrationComplete.value) {
