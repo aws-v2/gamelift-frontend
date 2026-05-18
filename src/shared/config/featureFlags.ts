@@ -1,4 +1,4 @@
-import { getRemoteConfig } from './remoteConfig'
+import { getRemoteConfig, loadRemoteConfig } from './remoteConfig'
 import { baseLogger } from './logger'
 export type ServiceEnv = 'dev' | 'staging' | 'prod'
 const logger = baseLogger.child({ scope: 'featureFlags' })
@@ -76,7 +76,7 @@ export const featureFlags = {
    * Priority: localStorage -> remoteConfig (VITE_FF_SERVICE_X) -> Global profile -> Default
    */
   async getServiceUrl(service: string): Promise<string> {
-    const config = getRemoteConfig()
+    const config = await loadRemoteConfig()
     const envKey = `VITE_FF_SERVICE_${service.toUpperCase()}`
     const storageKey = `ff_service_${service.toLowerCase()}`
 

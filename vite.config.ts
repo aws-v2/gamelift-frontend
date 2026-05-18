@@ -17,18 +17,6 @@ export default defineConfig({
       "[IP_ADDRESS]"
     ],
     proxy: {
-      '/login': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/games': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/offer': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
     },
   },
   test: {

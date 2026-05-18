@@ -14,7 +14,7 @@ let cachedConfig: RemoteConfig | null = null
 let pollingInterval: ReturnType<typeof setInterval> | null = null
 
 const STAGING_DEFAULTS: RemoteConfig = {
-  VITE_API_BASE_URL:              "http://100.71.223.121:8080/api/v1",
+  VITE_API_BASE_URL:              "http://api-gateway-staging:8080/api/v1",
   VITE_APP_PROFILE:               "staging",
   VITE_SHOW_GAMING_COMING_SOON:   "true",
   VITE_STAGING_TAILSCALE_IP:      "100.71.223.121",
@@ -57,6 +57,7 @@ function resolveFallback(): RemoteConfig {
 }
 
 export async function loadRemoteConfig(): Promise<RemoteConfig> {
+  if (cachedConfig) return cachedConfig
   const CONFIG_FILE = '/config.json'
 
   try {

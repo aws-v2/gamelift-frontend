@@ -48,9 +48,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { login } from '@/modules/auth/services/api'
+import { useAuthStore } from '@/modules/auth/store/authStore'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
@@ -61,7 +62,7 @@ async function handleLogin() {
   loading.value = true
   error.value = ''
   try {
-    await login(email.value.trim(), password.value)
+    await authStore.login({ email: email.value.trim(), password: password.value })
     router.push('/home')
   } catch (err) {
     error.value = 'Authentication failed. Unauthorized node.'
