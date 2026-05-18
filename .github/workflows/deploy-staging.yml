@@ -43,7 +43,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: qarani/gamelift-frontend-server:staging
+          tags: |
+            qarani/gamelift-frontend-server:staging-${{ github.sha }}
+            qarani/gamelift-frontend-server:staging
           build-args: |
             VITE_APP_PROFILE=staging
 
@@ -67,18 +69,17 @@ jobs:
           username: ${{ secrets.STAGING_USERNAME }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
-            docker pull qarani/gamelift-frontend-server:staging
+            docker pull qarani/gamelift-frontend-server:staging-${{ github.sha }}
             docker stop gamelift-frontend-server || true
             docker rm gamelift-frontend-server || true
             docker run -d \
               --name gamelift-frontend-server \
               --network aws-staging-network \
-              -e VITE_API_BASE_URL=http://localhost:8080 \
+              -e VITE_API_BASE_URL=http://api-gateway-staging:8080 \
               -e VITE_APP_PROFILE=staging \
               -e API_GATEWAY_HOST=api-gateway-staging \
-              -p 5174:80
-              qarani/gamelift-frontend-server:staging
-
+              -p 5174:80 \
+              qarani/gamelift-frontend-server:staging-${{ github.sha }}
 
   staging-open-pr-to-main:
     if: github.event_name == 'push'

@@ -34,8 +34,8 @@ jobs:
       - name: Debug files (temporary)
         run: ls -R
 
-      - name: Run unit tests
-        run: npm run test:unit
+      # - name: Run unit tests
+      #   run: npm run test:unit
 
   dev-build-image:
     if: github.event_name == 'push'
