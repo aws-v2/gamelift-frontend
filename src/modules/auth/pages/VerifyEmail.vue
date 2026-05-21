@@ -2,26 +2,26 @@
   <div class="auth-page">
     <header class="auth-nav">
       <router-link to="/" class="brand">
-        <span class="logo-mark">[S]</span> <span class="logo-text">Serwin Games</span>
+        <span class="logo-mark">S</span> <span class="logo-text">GAMELIFT</span>
       </router-link>
-      <div class="nav-meta">PROTOCOL: VERIFY // SECURE</div>
+      <div class="nav-meta">IDENTITY VERIFICATION</div>
     </header>
 
     <div class="auth-container">
       <div class="auth-card">
-        <h1 class="auth-title">Identity <span class="t-orange">verification</span>.</h1>
-        <p class="auth-subtitle">Validating terminal handshake...</p>
+        <h1 class="auth-title">VERIFY</h1>
+        <p class="auth-subtitle">VALIDATING YOUR TERMINAL HANDSHAKE...</p>
 
         <div v-if="loading" class="status-container">
           <span class="spinner large"></span>
-          <p>Processing verification token.</p>
+          <p class="status-msg">PROCESSING VERIFICATION TOKEN...</p>
         </div>
 
         <div v-else-if="message" class="status-container">
           <p class="success-msg">{{ message }}</p>
           <div class="auth-footer" style="padding-top: 0; border: none;">
             <router-link to="/login" class="submit-btn" style="text-decoration: none;">
-              PROCEED TO LOGIN <span class="arrow">↗</span>
+              PROCEED TO SIGN IN
             </router-link>
           </div>
         </div>
@@ -30,7 +30,7 @@
           <p class="error-msg">{{ error }}</p>
           <div class="auth-footer" style="padding-top: 0; border: none;">
             <router-link to="/register" class="submit-btn" style="text-decoration: none;">
-              RETRY REGISTRATION <span class="arrow">↗</span>
+              RETRY REGISTRATION
             </router-link>
           </div>
         </div>
@@ -70,43 +70,47 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
 .auth-nav {
-  padding: 24px 48px;
+  padding: 24px 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px);
 }
 
 .brand {
-  font-family: var(--font-sans);
-  font-size: 16px;
-  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   text-decoration: none;
-}
-
-.logo-mark {
-  color: var(--accent);
-  font-family: var(--font-mono);
-}
-
-.logo-text {
   color: var(--text-primary);
 }
 
+.logo-mark {
+  background: var(--text-primary);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 20px;
+}
+
+.logo-text {
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -1px;
+}
+
 .nav-meta {
-  font-family: var(--font-mono);
   font-size: 11px;
+  font-weight: 800;
   color: var(--text-muted);
+  letter-spacing: 1px;
 }
 
 .auth-container {
@@ -114,106 +118,101 @@ onMounted(async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px;
+  padding: 60px;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 440px;
-  padding: 48px;
-  background: rgba(24, 22, 21, 0.4);
+  max-width: 480px;
+  padding: 60px;
+  background: #fff;
   border: 1px solid var(--border-color);
-  backdrop-filter: blur(10px);
 }
 
 .auth-title {
-  font-family: var(--font-serif);
-  font-size: 40px;
-  font-weight: 500;
-  line-height: 1.1;
-  letter-spacing: -1px;
-  margin-bottom: 16px;
-}
-
-.t-orange {
-  color: var(--accent);
-  font-style: italic;
+  font-size: 48px;
+  font-weight: 900;
+  letter-spacing: -2px;
+  margin-bottom: 8px;
 }
 
 .auth-subtitle {
-  color: var(--text-muted);
-  font-size: 15px;
-  margin-bottom: 40px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-bottom: 48px;
 }
 
 .status-container {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
+}
+
+.status-msg {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .spinner.large {
-  width: 32px;
-  height: 32px;
-  border-width: 3px;
+  width: 40px;
+  height: 40px;
+  border-width: 4px;
   margin: 20px auto;
 }
 
 .submit-btn {
-  background: var(--accent);
+  background: var(--text-primary);
   color: #fff;
   border: none;
-  padding: 16px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  padding: 18px;
+  font-weight: 800;
+  font-size: 14px;
   letter-spacing: 1px;
   cursor: pointer;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  transition: background 0.2s;
-  margin-top: 16px;
+  gap: 12px;
+  transition: all 0.2s;
   width: 100%;
   box-sizing: border-box;
 }
 
 .submit-btn:hover {
-  background: #d64724;
-}
-
-.arrow {
-  font-size: 16px;
+  background: var(--accent);
 }
 
 .error-msg {
-  color: var(--accent);
-  font-size: 13px;
-  font-family: var(--font-mono);
-  margin: 0;
+  color: #EF4444;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
   line-height: 1.5;
 }
 
 .success-msg {
   color: #10b981;
-  font-size: 13px;
-  font-family: var(--font-mono);
-  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
   line-height: 1.5;
 }
 
 .spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
   border-top-color: #fff;
-  border-radius: 50%;
+  border-radius: 50% !important;
   animation: spin 0.6s linear infinite;
-  display: inline-block;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
+
 </style>

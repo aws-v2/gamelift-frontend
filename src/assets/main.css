@@ -1,11 +1,11 @@
 :root {
-  --bg-primary: #181615;
-  --bg-secondary: #22201e;
-  --text-primary: #efece5;
-  --text-muted: rgba(239, 236, 229, 0.4);
-  --accent: #F2542D;
-  --border-color: rgba(239, 236, 229, 0.1);
-  --font-serif: 'Lora', serif;
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #FAFAFA;
+  --text-primary: #0A0A0A;
+  --text-muted: #737373;
+  --accent: #F97316; /* Professional Orange */
+  --accent-hover: #EA580C;
+  --border-color: #E5E5E5;
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
@@ -16,24 +16,18 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-}
-
-html {
-  font-size: 16px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  border-radius: 0 !important; /* Sharp corners as requested */
 }
 
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-primary);
   background-image: 
-    linear-gradient(rgba(239, 236, 229, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(239, 236, 229, 0.02) 1px, transparent 1px);
+    linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
   background-size: 40px 40px;
   color: var(--text-primary);
-  line-height: 1.6;
-  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -43,8 +37,18 @@ a {
 
 button {
   font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+input {
+  font-family: inherit;
+  outline: none;
+}
+
+/* Custom Scrollbar - Sleek & Minimal */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -54,15 +58,12 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  background: #D4D4D4;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--accent);
 }
 
-::selection {
-  background: rgba(124, 58, 237, 0.3);
-  color: #fff;
-}
+
+

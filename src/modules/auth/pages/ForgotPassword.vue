@@ -2,15 +2,15 @@
   <div class="auth-page">
     <header class="auth-nav">
       <router-link to="/" class="brand">
-        <span class="logo-mark">[S]</span> <span class="logo-text">Serwin Games</span>
+        <span class="logo-mark">S</span> <span class="logo-text">GAMELIFT</span>
       </router-link>
-      <div class="nav-meta">PROTOCOL: RECOVER_CREDS // SECURE</div>
+      <div class="nav-meta">RECOVERY MODE</div>
     </header>
 
     <div class="auth-container">
       <div class="auth-card">
-        <h1 class="auth-title">System <span class="t-orange">recovery</span>.</h1>
-        <p class="auth-subtitle">Verify identity to regain system access.</p>
+        <h1 class="auth-title">HELP</h1>
+        <p class="auth-subtitle">PROVIDE YOUR EMAIL TO RECOVER ACCESS.</p>
 
         <form @submit.prevent="handleRecover" class="auth-form">
           <div class="form-group">
@@ -22,7 +22,7 @@
 
           <button type="submit" :disabled="loading" class="submit-btn">
             <span v-if="loading" class="spinner"></span>
-            <span v-else>SEND RECOVERY CHIP <span class="arrow">↗</span></span>
+            <span v-else>SEND RESET LINK</span>
           </button>
 
           <p v-if="message" class="success-msg">{{ message }}</p>
@@ -30,7 +30,7 @@
         </form>
 
         <div class="auth-footer">
-          <p>Remember your keys? <router-link to="/login" class="link">Authenticate here.</router-link></p>
+          <p>REMEMBERED? <router-link to="/login" class="link">SIGN IN.</router-link></p>
         </div>
       </div>
     </div>
@@ -63,44 +63,47 @@ async function handleRecover() {
 </script>
 
 <style scoped>
-/* Same CSS as Register.vue */
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
 .auth-nav {
-  padding: 24px 48px;
+  padding: 24px 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px);
 }
 
 .brand {
-  font-family: var(--font-sans);
-  font-size: 16px;
-  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   text-decoration: none;
-}
-
-.logo-mark {
-  color: var(--accent);
-  font-family: var(--font-mono);
-}
-
-.logo-text {
   color: var(--text-primary);
 }
 
+.logo-mark {
+  background: var(--text-primary);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 20px;
+}
+
+.logo-text {
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -1px;
+}
+
 .nav-meta {
-  font-family: var(--font-mono);
   font-size: 11px;
+  font-weight: 800;
   color: var(--text-muted);
+  letter-spacing: 1px;
 }
 
 .auth-container {
@@ -108,97 +111,82 @@ async function handleRecover() {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px;
+  padding: 60px;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 440px;
-  padding: 48px;
-  background: rgba(24, 22, 21, 0.4);
+  max-width: 480px;
+  padding: 60px;
+  background: #fff;
   border: 1px solid var(--border-color);
-  backdrop-filter: blur(10px);
 }
 
 .auth-title {
-  font-family: var(--font-serif);
-  font-size: 40px;
-  font-weight: 500;
-  line-height: 1.1;
-  letter-spacing: -1px;
-  margin-bottom: 16px;
-}
-
-.t-orange {
-  color: var(--accent);
-  font-style: italic;
+  font-size: 48px;
+  font-weight: 900;
+  letter-spacing: -2px;
+  margin-bottom: 8px;
 }
 
 .auth-subtitle {
-  color: var(--text-muted);
-  font-size: 15px;
-  margin-bottom: 40px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-bottom: 48px;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.label-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.form-group label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 1px;
+.label-row label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
 }
 
 .form-group input {
   box-sizing: border-box;
   width: 100%;
   padding: 16px;
-  background: transparent;
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  transition: border-color 0.2s;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
   outline: none;
 }
 
 .form-group input:focus {
-  border-color: var(--accent);
+  border-color: var(--text-primary);
+  background: #fff;
 }
 
 .submit-btn {
-  background: var(--accent);
+  background: var(--text-primary);
   color: #fff;
   border: none;
-  padding: 16px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  padding: 18px;
+  font-weight: 800;
+  font-size: 14px;
   letter-spacing: 1px;
   cursor: pointer;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  transition: background 0.2s;
-  margin-top: 16px;
+  gap: 12px;
+  transition: all 0.2s;
+  margin-top: 12px;
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #d64724;
+  background: var(--accent);
 }
 
 .submit-btn:disabled {
@@ -206,41 +194,35 @@ async function handleRecover() {
   cursor: not-allowed;
 }
 
-.arrow {
-  font-size: 16px;
-}
-
 .error-msg {
-  color: var(--accent);
-  font-size: 13px;
-  font-family: var(--font-mono);
-  margin: 0;
+  color: #EF4444;
+  font-size: 12px;
+  font-weight: 800;
   text-align: center;
+  margin-top: 16px;
 }
 
 .success-msg {
   color: #10b981;
-  font-size: 13px;
-  font-family: var(--font-mono);
-  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
   text-align: center;
+  margin-top: 16px;
 }
 
 .auth-footer {
-  margin-top: 32px;
-  text-align: left;
-  font-size: 14px;
+  margin-top: 48px;
+  text-align: center;
+  font-size: 12px;
   color: var(--text-muted);
   border-top: 1px solid var(--border-color);
-  padding-top: 24px;
+  padding-top: 32px;
 }
 
 .link {
   color: var(--text-primary);
+  font-weight: 800;
   text-decoration: none;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  margin-left: 8px;
   transition: color 0.2s;
 }
 
@@ -249,18 +231,16 @@ async function handleRecover() {
 }
 
 .spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
   border-top-color: #fff;
-  border-radius: 50%;
+  border-radius: 50% !important;
   animation: spin 0.6s linear infinite;
-  margin: 0 auto;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
+
 </style>

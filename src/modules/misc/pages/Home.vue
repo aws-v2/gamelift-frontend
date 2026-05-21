@@ -1,82 +1,106 @@
 <template>
-  <div class="dashboard-page">
-    <header class="top-nav overlay-nav">
-      <div class="brand">
-        <span class="logo-mark">[S]</span> <span class="logo-text">Serwin Games</span>
+  <div class="portal-page">
+    <!-- NAVIGATION -->
+    <header class="main-nav">
+      <div class="nav-left">
+        <div class="brand" @click="router.push('/home')">
+          <span class="logo-mark">S</span>
+          <span class="logo-text">GAMELIFT</span>
+        </div>
+        <nav class="nav-links">
+          <span class="nav-link active">DISCOVER</span>
+          <router-link to="/library" class="nav-link">LIBRARY</router-link>
+        </nav>
       </div>
-      <nav class="nav-links">
-        <span class="nav-item active">Discover</span>
-        <span class="nav-item">Library</span>
-        <span class="nav-item">Community</span>
-      </nav>
-      <div class="nav-actions">
-        <span class="profile-name">Player One</span>
-        <button id="logout-button" class="logout-btn" @click="handleLogout">
-          LOGOUT <span class="arrow">×</span>
-        </button>
+
+      <div class="nav-right">
+        <div class="search-trigger">
+          <span class="icon">Q</span>
+          SEARCH
+        </div>
+        <div class="user-control" @click="router.push('/user-profile')">
+          <span class="username">{{ authStore.user?.username || 'PLAYER ONE' }}</span>
+          <div class="avatar">
+            <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" />
+            <span v-else>P</span>
+          </div>
+        </div>
+        <button class="logout-link" @click="handleLogout">LOGOUT</button>
       </div>
     </header>
 
-    <main class="dashboard-content">
-      <div v-if="loading" class="dash-state">
-        <div class="loader"></div>
-        <p>Syncing your library...</p>
+    <!-- HERO BANNER (Immersive Netflix-style) -->
+    <main class="portal-content">
+      <div v-if="loading" class="portal-state">
+        <div class="portal-loader"></div>
+        <p>SYNCHRONIZING REPOSITORIES...</p>
       </div>
 
-      <div v-else-if="error" class="dash-state">
+      <div v-else-if="error" class="portal-state error">
         <p>{{ error }}</p>
-        <button class="retry-btn" @click="loadGames">RETRY SYNC</button>
+        <button class="portal-btn secondary" @click="loadGames">RELOAD</button>
       </div>
 
-      <div v-else-if="games.length === 0" class="dash-state">
-        <p>Your library is empty. Discover new worlds.</p>
-      </div>
-
-      <template v-else>
-        <!-- HERO SECTION -->
-        <section class="dash-hero"
-          :style="{ backgroundImage: `url(https://picsum.photos/seed/${heroGame.id}/1920/1080)` }">
-          <div class="hero-vignette"></div>
-
-          <div class="hero-content">
-            <h1 class="hero-title">{{ heroGame.game_name }}</h1>
-
-            <div class="hero-meta">
-              <span class="meta-tag rating">★ 9.8/10</span>
-              <span class="meta-tag popularity">TOP PICK</span>
-            </div>
-
-            <p class="hero-details">
-              Action / Adventure • 2026 • 4K HDR
-            </p>
-
-            <p class="hero-desc">
-              Continue your epic journey. Your last checkpoint was in the Shattered Peaks. The world awaits your return.
-            </p>
-
-            <div class="hero-actions">
-              <button class="btn-primary" @click="viewDetails(heroGame.id)">
-                <span class="icon">▶</span> PLAY
-              </button>
-              <button class="btn-secondary" @click="viewDetails(heroGame.id)">
-                <span class="icon">ℹ</span> DETAILS
-              </button>
-            </div>
+      <template v-else-if="heroGame">
+        <section class="hero-banner" @click="viewDetails(heroGame.id)">
+          <div class="hero-bg" :style="{ backgroundImage: `url(https://picsum.photos/seed/${heroGame.id}/1920/1080)` }">
+            <div class="hero-overlay"></div>
           </div>
-
-          <!-- POSTERS CAROUSEL IN THE BOTTOM -->
-          <div class="posters-container">
-            <div class="posters-carousel">
-              <div v-for="game in remainingGames" :key="game.id" class="poster-card" @click="viewDetails(game.id)">
-                <div class="poster-image"
-                  :style="{ backgroundImage: `url(https://picsum.photos/seed/${game.id}/600/400)` }"></div>
-                <div class="poster-overlay">
-                  <h3 class="poster-title">{{ game.game_name }}</h3>
-                </div>
-              </div>
+          
+          <div class="hero-details">
+            <div class="hero-type">FEATURED SELECTION</div>
+            <h1 class="hero-title">{{ heroGame.game_name }}</h1>
+            <p class="hero-synopsis">
+              Enter the next generation of cloud gaming. High-fidelity visuals meet zero-latency performance. 
+              Your session is ready for immediate deployment.
+            </p>
+            <div class="hero-actions">
+              <button class="portal-btn primary" @click.stop="viewDetails(heroGame.id)">PLAY NOW</button>
+              <button class="portal-btn secondary" @click.stop="viewDetails(heroGame.id)">VIEW SPECS</button>
             </div>
           </div>
         </section>
+
+        <!-- MEDIA ROWS -->
+        <div class="portal-rows">
+          <section class="media-row">
+            <div class="row-header">
+              <h2 class="row-title">TRENDING NOW</h2>
+              <router-link to="/library" class="row-link">BROWSE ALL ›</router-link>
+            </div>
+            <div class="row-grid">
+              <div v-for="game in remainingGames.slice(0, 4)" :key="game.id" class="media-card" @click="viewDetails(game.id)">
+                <div class="card-poster" :style="{ backgroundImage: `url(https://picsum.photos/seed/${game.id}/600/900)` }">
+                  <div class="card-hover-overlay">
+                    <span class="play-icon">▶</span>
+                  </div>
+                </div>
+                <div class="card-info">
+                  <h3>{{ game.game_name }}</h3>
+                  <p>NEW ARRIVAL • 4K HDR</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="media-row">
+            <div class="row-header">
+              <h2 class="row-title">RECENTLY ADDED</h2>
+            </div>
+            <div class="row-grid horizontal">
+              <div v-for="game in remainingGames.slice(4)" :key="game.id" class="media-card horiz" @click="viewDetails(game.id)">
+                <div class="card-poster" :style="{ backgroundImage: `url(https://picsum.photos/seed/${game.id}/1200/600)` }">
+                  <div class="card-hover-overlay">
+                    <span class="play-icon">▶</span>
+                  </div>
+                </div>
+                <div class="card-info">
+                  <h3>{{ game.game_name }}</h3>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
       </template>
     </main>
   </div>
@@ -101,15 +125,14 @@ async function loadGames() {
     const fetched = await fetchGames()
     games.value = fetched || []
   } catch (err) {
-    error.value = 'Failed to sync workloads across nodes.'
+    error.value = 'CONNECTION ERROR: UNABLE TO SYNC COLLECTION.'
   } finally {
     loading.value = false
   }
 }
 
 const heroGame = computed(() => games.value[0] || null)
-// We still display the hero game in the carousel, or hide it. Let's show all games in the carousel to be more like a library.
-const remainingGames = computed(() => games.value)
+const remainingGames = computed(() => games.value.slice(1))
 
 function viewDetails(id) {
   router.push(`/game-details/${id}`)
@@ -124,43 +147,57 @@ onMounted(loadGames)
 </script>
 
 <style scoped>
-.dashboard-page {
+.portal-page {
   min-height: 100vh;
   background-color: var(--bg-primary);
-  position: relative;
-  overflow: hidden;
-  /* Hide body scroll if we make the hero 100vh exactly */
+  display: flex;
+  flex-direction: column;
 }
 
-/* TOP NAV OVERLAY */
-.top-nav.overlay-nav {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
-  border-bottom: none;
-  padding: 30px 60px;
+/* NAVIGATION */
+.main-nav {
+  height: 80px;
+  padding: 0 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: var(--font-sans);
-  font-size: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 60px;
 }
 
 .brand {
-  font-family: var(--font-sans);
-  font-size: 20px;
-  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 8px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  gap: 12px;
+  cursor: pointer;
 }
 
 .logo-mark {
-  color: var(--accent);
+  background: var(--text-primary);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 20px;
+}
+
+.logo-text {
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -1px;
 }
 
 .nav-links {
@@ -168,164 +205,136 @@ onMounted(loadGames)
   gap: 32px;
 }
 
-.nav-item {
-  color: rgba(255, 255, 255, 0.7);
-  transition: color 0.2s;
+.nav-link {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
   cursor: pointer;
-  text-decoration: none;
-  font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  transition: color 0.2s;
+  letter-spacing: 0.5px;
 }
 
-.nav-item.active {
-  color: #fff;
-  border-bottom: 2px solid #fff;
-  padding-bottom: 4px;
+.nav-link:hover, .nav-link.active {
+  color: var(--text-primary);
 }
 
-.nav-item:hover {
-  color: #fff;
-}
-
-.nav-actions {
+.nav-right {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 40px;
 }
 
-.profile-name {
-  color: #fff;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.logout-btn {
-  background: transparent;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 16px;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
+.search-trigger {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 8px;
-  border-radius: 4px;
+  cursor: pointer;
 }
 
-.logout-btn:hover {
-  border-color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-}
+.search-trigger .icon { font-weight: 900; }
 
-/* STATE MESSAGES */
-.dash-state {
-  height: 100vh;
+.user-control {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-  font-family: var(--font-mono);
+  gap: 16px;
+  cursor: pointer;
+}
+
+.username {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.logout-link {
+  font-size: 11px;
+  font-weight: 700;
   color: var(--text-muted);
 }
 
-/* DASHBOARD CONTENT */
-.dashboard-content {
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
+.logout-link:hover { color: #EF4444; }
+
+/* HERO BANNER */
+.portal-content {
+  flex: 1;
 }
 
-/* HERO CINEMATIC */
-.dash-hero {
+.hero-banner {
   position: relative;
+  height: 85vh;
   width: 100%;
-  height: 100vh;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
   background-size: cover;
   background-position: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.hero-vignette {
+.hero-banner:hover .hero-bg {
+  transform: scale(1.05);
+}
+
+.hero-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.5) 100%),
-    linear-gradient(90deg, rgba(10, 10, 15, 0.9) 0%, rgba(10, 10, 15, 0.3) 50%, rgba(0, 0, 0, 0) 100%),
-    linear-gradient(0deg, rgba(10, 10, 15, 1) 0%, rgba(10, 10, 15, 0) 30%);
-  pointer-events: none;
-}
-
-.hero-content {
-  position: relative;
-  z-index: 10;
-  padding: 0 60px;
-  max-width: 800px;
-  margin-top: auto;
-  margin-bottom: 300px;
-  /* Leave space for bottom posters */
-}
-
-.hero-title {
-  font-family: var(--font-serif);
-  font-size: 90px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -2px;
-  margin-bottom: 24px;
-  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
-  font-style: italic;
-  color: #fff;
-  background: -webkit-linear-gradient(#fff, #a0d8f1);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.hero-meta {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  margin-bottom: 12px;
-  font-family: var(--font-sans);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.meta-tag.rating {
-  color: #eab308;
-}
-
-.meta-tag.popularity {
-  color: #e5e5e5;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  inset: 0;
+  background: linear-gradient(0deg, var(--bg-primary) 0%, rgba(255,255,255,0) 40%),
+              linear-gradient(90deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 50%);
 }
 
 .hero-details {
-  font-family: var(--font-sans);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 15px;
+  position: relative;
+  z-index: 10;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 100px;
+  max-width: 800px;
+}
+
+.hero-type {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--accent);
+  letter-spacing: 2px;
   margin-bottom: 24px;
 }
 
-.hero-desc {
-  font-family: var(--font-sans);
+.hero-title {
+  font-size: 100px;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -5px;
+  margin-bottom: 32px;
+  text-transform: uppercase;
+}
+
+.hero-synopsis {
   font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
   line-height: 1.6;
-  margin-bottom: 40px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
-  max-width: 600px;
+  color: var(--text-muted);
+  margin-bottom: 48px;
+  max-width: 500px;
 }
 
 .hero-actions {
@@ -333,137 +342,164 @@ onMounted(loadGames)
   gap: 16px;
 }
 
-.btn-primary {
-  background: #3b82f6;
-  /* Blueish to match Avatar vibe initially, or keep orange. Let's make it vivid blue/netflix style */
+.portal-btn {
+  padding: 18px 40px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.portal-btn.primary {
+  background: var(--text-primary);
+  color: #fff;
+}
+
+.portal-btn.primary:hover {
   background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 16px 40px;
-  font-family: var(--font-sans);
-  font-size: 16px;
-  font-weight: 700;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: transform 0.2s, background 0.2s;
-  box-shadow: 0 4px 14px rgba(242, 84, 45, 0.4);
 }
 
-.btn-primary:hover {
-  background: #d64724;
-  transform: scale(1.05);
+.portal-btn.secondary {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
 }
 
-.btn-secondary {
-  background: rgba(80, 80, 80, 0.6);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 16px 40px;
-  font-family: var(--font-sans);
-  font-size: 16px;
-  font-weight: 700;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.portal-btn.secondary:hover {
+  border-color: var(--text-primary);
 }
 
-.btn-secondary:hover {
-  background: rgba(100, 100, 100, 0.8);
-  border-color: #fff;
-}
-
-/* POSTERS CAROUSEL OVERLAYING BOTTOM */
-.posters-container {
-  position: absolute;
-  bottom: 40px;
-  left: 0;
-  width: 100%;
-  z-index: 20;
-  padding-left: 60px;
-}
-
-.posters-carousel {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  padding-bottom: 20px;
-  padding-right: 60px;
-  scroll-behavior: smooth;
-  scroll-snap-type: x mandatory;
-}
-
-/* Hide scrollbar for cleaner UI */
-.posters-carousel::-webkit-scrollbar {
-  display: none;
-}
-
-.posters-carousel {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.poster-card {
-  scroll-snap-align: start;
-  flex: 0 0 260px;
+/* MEDIA ROWS */
+.portal-rows {
+  margin-top: -120px;
   position: relative;
-  aspect-ratio: 16 / 9;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.3s ease, border-color 0.3s ease;
-  border: 2px solid transparent;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-}
-
-.poster-card:hover {
-  transform: translateY(-8px) scale(1.05);
-  border-color: #fff;
-  z-index: 30;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
-}
-
-.poster-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-size: cover;
-  background-position: center;
-  transition: transform 0.5s ease;
-}
-
-.poster-card:hover .poster-image {
-  transform: scale(1.1);
-}
-
-.poster-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.8) 100%);
+  z-index: 20;
+  padding: 0 60px 100px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 16px;
-  opacity: 0.9;
+  gap: 80px;
 }
 
-.poster-title {
-  font-family: var(--font-sans);
-  font-size: 16px;
-  font-weight: 700;
-  margin: 0;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+.media-row {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
+
+.row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.row-title {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.row-link {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.row-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.row-grid.horizontal {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.media-card {
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.media-card:hover {
+  transform: translateY(-8px);
+}
+
+.card-poster {
+  aspect-ratio: 2 / 3;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.horiz .card-poster {
+  aspect-ratio: 16 / 9;
+}
+
+.card-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(249, 115, 22, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.media-card:hover .card-hover-overlay {
+  opacity: 1;
+}
+
+.play-icon {
+  width: 60px;
+  height: 60px;
+  background: #fff;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 10px 10px 0 var(--accent);
+}
+
+.card-info {
+  margin-top: 16px;
+}
+
+.card-info h3 {
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.card-info p {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* PORTAL STATES */
+.portal-state {
+  height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.portal-loader {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--bg-secondary);
+  border-top-color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
+
+

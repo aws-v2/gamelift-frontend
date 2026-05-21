@@ -17,13 +17,11 @@
     <div class="game-viewport">
       <div ref="threeContainer" class="three-container"></div>
 
-      <!-- Overlay (forced off after 2s for debug) -->
+      <!-- Overlay -->
       <div v-if="loading" class="game-overlay">
         <div class="overlay-content">
           <div class="overlay-spinner"></div>
-          <p>WebSocket Debug Mode Active</p>
-          <p style="font-size: 12px; color: #a78bfa; margin-top: 10px;">[NOTICE] 3D Asset Loading Disabled</p>
-          <p style="font-size: 10px; color: #666; margin-top: 5px;">Check console for real-time server data</p>
+          <p>STABILIZING STREAM...</p>
         </div>
       </div>
     </div>
@@ -120,35 +118,6 @@ function setupPointerLock(playerMesh) {
 
 
 
-async function loadGame(agentUrl) {
-  try {
-    console.log('[Game] connecting to agent:', agentUrl)
-
-    // connect directly to agent WS
-    ws.value = new WebSocket(`${agentUrl}/game`)
-
-    ws.value.onopen = () => {
-      console.log('[Game] agent WS connected:', agentUrl)
-      loading.value = false
-    }
-
-    ws.value.onmessage = (event) => {
-      console.log('[Game] agent message:', event.data)
-      // handle game stream data here
-    }
-
-    ws.value.onerror = (err) => {
-      console.error('[Game] agent WS error:', err)
-    }
-
-    ws.value.onclose = () => {
-      console.warn('[Game] agent WS closed')
-    }
-
-  } catch (err) {
-    console.error('[Game] failed to connect to agent:', err)
-  }
-}
 function setupEntity(name, mesh) {
   entities.set(name, {
     mesh,
@@ -185,8 +154,7 @@ function tick() {
 // --- WebSocket Handling ---
 function handleServerMessage(event) {
   try {
-    console.log('[WS][Data Received]', event.data)
-    const data = JSON.parse(event.data)
+    const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
 
     // We expect updates like: { "node": "PlayerCharacter", "x": 10, ... }
     // Or a list of updates? For now assume single node update
@@ -244,16 +212,12 @@ onMounted(async () => {
   tick()
 
   try {
-    console.log('initGameSession res101')
-
     const wsUrl = await initGameSession()
-    console.log('initGameSession res11', wsUrl)
-
-    // await loadGame()
 
     const socket = connectWebSocket(wsUrl)
     socket.addEventListener('open', () => {
       wsConnected.value = true
+      loading.value = false
       sendMessage({ type: 'join', session_id: sessionId.value, data: { gameId: route.params.id } })
     })
     socket.addEventListener('close', () => { wsConnected.value = false })
@@ -268,9 +232,15 @@ onMounted(async () => {
 async function initGameSession() {
   const gameId = route.params.id
   
-  const BACKEND_URL = await featureFlags.getServiceUrl('gamelift')
+  // Fetch game manifest
+  try {
+    manifest.value = await fetchGameManifest(gameId)
+    console.log('[Game] manifest loaded:', manifest.value)
+  } catch (err) {
+    console.warn('[Game] failed to fetch manifest:', err)
+  }
 
-  console.log(`[initGameSession] starting for gameId=${gameId}`)
+  const BACKEND_URL = await featureFlags.getServiceUrl('gamelift')
 
   // 1. Provision VM
   const res = await apiClient.post(`/gamelift/games/${gameId}/session`, {
@@ -278,14 +248,10 @@ async function initGameSession() {
     game_image: "string"
   })
 
-  console.log(`[initGameSession] session response:`, res.data)
-
   const { AgentWSURL, Token, ID } = res.data
   sessionId.value = ID
 
-  // 2. Already provisioned (e.g. reconnecting)
   if (AgentWSURL) {
-    console.log(`[initGameSession] already provisioned, agent_url=${AgentWSURL}`)
     return buildWsUrl(AgentWSURL, Token)
   }
 
@@ -302,9 +268,6 @@ return new Promise((resolve, reject) => {
     `${BACKEND_URL}gamelift/fleet/instances/${ID}/events?token=${token}`
   )
 
-  console.log(`[SSE] connection opened: ${sse.url}`)
-  console.log(`[SSE] token being used:`, token)
-
   let resolved = false
 
   const cleanup = () => {
@@ -320,12 +283,9 @@ return new Promise((resolve, reject) => {
     reject(new Error('Provisioning timed out'))
   }, 5 * 60 * 1000)
 
-  sse.onopen = () => {
-    console.log(`[SSE] connection established successfully`)
-  }
+  sse.onopen = () => { }
 
   sse.onmessage = (event) => {
-    console.log(`[SSE] message received:`, event.data)
 
     let data
 
@@ -356,8 +316,6 @@ return new Promise((resolve, reject) => {
     //
     if (data.agent_url) {
       console.log(`[SSE] agent_url received: ${data.agent_url}`)
-
-      loadGame(data.agent_url)
 
       resolved = true
 
