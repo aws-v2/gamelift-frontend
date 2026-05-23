@@ -151,27 +151,84 @@ function tick() {
   }
 }
 
-// --- WebSocket Handling ---
+
+
+
+// --- Message Dispatcher ---
 function handleServerMessage(event) {
   try {
-    const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+    const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
 
-    // We expect updates like: { "node": "PlayerCharacter", "x": 10, ... }
-    // Or a list of updates? For now assume single node update
-    const nodeName = data.node || manifest.value?.player_node
-    const entity = entities.get(nodeName)
+    switch (msg.type) {
 
-    if (entity) {
-      if (typeof data.x === 'number') entity.target.x = data.x
-      if (typeof data.y === 'number') entity.target.y = data.y
-      if (typeof data.z === 'number') entity.target.z = data.z
-      if (typeof data.yaw === 'number') entity.target.yaw = data.yaw
-      if (typeof data.pitch === 'number') entity.target.pitch = data.pitch
+      case 'game_ready':
+        console.log('[ws] game_ready received — sending play_game in 4s')
+        setTimeout(() => {
+          loading.value = false
+          sendMessage({ type: 'open_game', session_id: sessionId.value })
+          console.log('[ws] open_game sent')
+        }, 4000)
+        break
+
+      case 'game_state':
+        handleGameState(msg.data ?? msg)  // works for both placeholder and Godot
+        break
+
+      case 'game_closed':
+        console.warn('[ws] game closed:', msg.reason)
+        wsConnected.value = false
+        break
+
+      case 'error':
+        console.error('[ws] agent error:', msg.reason)
+        break
+
+      default:
+        console.warn('[ws] unknown message type:', msg.type)
     }
+
   } catch (err) {
-    console.warn('[Game] Error parsing server message:', err)
+    console.warn('[ws] parse error:', err)
   }
 }
+
+
+// --- Game State (Godot position data) ---
+function handleGameState(data) {
+  const nodeName = data.node || manifest.value?.player_node
+  const entity = entities.get(nodeName)
+
+  if (entity) {
+    if (typeof data.x     === 'number') entity.target.x     = data.x
+    if (typeof data.y     === 'number') entity.target.y     = data.y
+    if (typeof data.z     === 'number') entity.target.z     = data.z
+    if (typeof data.yaw   === 'number') entity.target.yaw   = data.yaw
+    if (typeof data.pitch === 'number') entity.target.pitch = data.pitch
+  }
+}
+
+
+// --- WebSocket Handling ---
+// function handleServerMessage(event) {
+//   try {
+//     const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+
+//     // We expect updates like: { "node": "PlayerCharacter", "x": 10, ... }
+//     // Or a list of updates? For now assume single node update
+//     const nodeName = data.node || manifest.value?.player_node
+//     const entity = entities.get(nodeName)
+
+//     if (entity) {
+//       if (typeof data.x === 'number') entity.target.x = data.x
+//       if (typeof data.y === 'number') entity.target.y = data.y
+//       if (typeof data.z === 'number') entity.target.z = data.z
+//       if (typeof data.yaw === 'number') entity.target.yaw = data.yaw
+//       if (typeof data.pitch === 'number') entity.target.pitch = data.pitch
+//     }
+//   } catch (err) {
+//     console.warn('[Game] Error parsing server message:', err)
+//   }
+// }
 
 
 const sessionId = ref(null)
@@ -218,7 +275,7 @@ onMounted(async () => {
     socket.addEventListener('open', () => {
       wsConnected.value = true
       loading.value = false
-      sendMessage({ type: 'join', session_id: sessionId.value, data: { gameId: route.params.id } })
+      sendMessage({ type: 'open_game', session_id: sessionId.value, data: { gameId: route.params.id } })
     })
     socket.addEventListener('close', () => { wsConnected.value = false })
     socket.addEventListener('message', handleServerMessage)
@@ -231,7 +288,7 @@ onMounted(async () => {
 
 async function initGameSession() {
   const gameId = route.params.id
-  
+
   // Fetch game manifest
   try {
     manifest.value = await fetchGameManifest(gameId)
@@ -262,90 +319,90 @@ async function initGameSession() {
 
   const authStore = useAuthStore()
   const token = authStore.token
-// 3. Pending — wait for backend to push agent_url via SSE
-return new Promise((resolve, reject) => {
-  const sse = new EventSource(
-    `${BACKEND_URL}gamelift/fleet/instances/${ID}/events?token=${token}`
-  )
+  // 3. Pending — wait for backend to push agent_url via SSE
+  return new Promise((resolve, reject) => {
+    const sse = new EventSource(
+      `${BACKEND_URL}gamelift/fleet/instances/${ID}/events?token=${token}`
+    )
 
-  let resolved = false
+    let resolved = false
 
-  const cleanup = () => {
-    clearTimeout(timeout)
-    sse.close()
-  }
-
-  const timeout = setTimeout(() => {
-    console.warn(`[SSE] timed out after 5min for instanceId=${ID}`)
-
-    cleanup()
-
-    reject(new Error('Provisioning timed out'))
-  }, 5 * 60 * 1000)
-
-  sse.onopen = () => { }
-
-  sse.onmessage = (event) => {
-
-    let data
-
-    try {
-      data = JSON.parse(event.data)
-    } catch (err) {
-      console.error(`[SSE] invalid JSON payload`, err)
-      cleanup()
-      reject(new Error('Invalid SSE payload'))
-      return
+    const cleanup = () => {
+      clearTimeout(timeout)
+      sse.close()
     }
 
-    //
-    // ERROR EVENT
-    //
-    if (data.error) {
-      console.error(`[SSE] provisioning failed:`, data.error)
+    const timeout = setTimeout(() => {
+      console.warn(`[SSE] timed out after 5min for instanceId=${ID}`)
 
       cleanup()
 
-      reject(new Error(data.error))
+      reject(new Error('Provisioning timed out'))
+    }, 5 * 60 * 1000)
 
-      return
+    sse.onopen = () => { }
+
+    sse.onmessage = (event) => {
+
+      let data
+
+      try {
+        data = JSON.parse(event.data)
+      } catch (err) {
+        console.error(`[SSE] invalid JSON payload`, err)
+        cleanup()
+        reject(new Error('Invalid SSE payload'))
+        return
+      }
+
+      //
+      // ERROR EVENT
+      //
+      if (data.error) {
+        console.error(`[SSE] provisioning failed:`, data.error)
+
+        cleanup()
+
+        reject(new Error(data.error))
+
+        return
+      }
+
+      //
+      // SUCCESS EVENT
+      //
+      if (data.agent_url) {
+        console.log(`[SSE] agent_url received: ${data.agent_url}`)
+
+        resolved = true
+
+        cleanup()
+        // data.vm_ip is the ip of the instance
+        resolve(buildWsUrl(data.agent_url, Token, data.vm_ip))
+
+        return
+      }
+
+      //
+      // UNKNOWN EVENT
+      //
+      console.warn(`[SSE] unknown event payload`, data)
     }
 
-    //
-    // SUCCESS EVENT
-    //
-    if (data.agent_url) {
-      console.log(`[SSE] agent_url received: ${data.agent_url}`)
+    sse.onerror = (err) => {
+      // browser fires error when connection closes normally
+      if (resolved) {
+        console.log(`[SSE] connection closed after successful resolution`)
+        return
+      }
 
-      resolved = true
+      console.error(`[SSE] connection error for instanceId=${ID}:`, err)
 
       cleanup()
 
-      resolve(buildWsUrl(data.agent_url, Token))
-
-      return
+      reject(new Error('SSE connection lost'))
     }
-
-    //
-    // UNKNOWN EVENT
-    //
-    console.warn(`[SSE] unknown event payload`, data)
-  }
-
-  sse.onerror = (err) => {
-    // browser fires error when connection closes normally
-    if (resolved) {
-      console.log(`[SSE] connection closed after successful resolution`)
-      return
-    }
-
-    console.error(`[SSE] connection error for instanceId=${ID}:`, err)
-
-    cleanup()
-
-    reject(new Error('SSE connection lost'))
-  }
-})
+  })
 
 
 }
@@ -353,15 +410,15 @@ return new Promise((resolve, reject) => {
 
 
 
-function buildWsUrl(wsUrl, token) {
-  console.log('initGameSession res11', wsUrl)
-
-  const url = new URL(wsUrl)
+function buildWsUrl(wsUrl, token, vmIp) {
+  const url = new URL(`${wsUrl}/game`)
   url.searchParams.set('token', token)
+  url.searchParams.set('vm_ip', vmIp)
   return url.toString()
+  // → ws://100.71.223.121:9030/game?token=...&vm_ip=10.0.6.12
 }
 
- 
+
 
 onBeforeUnmount(() => {
   cleanup()
