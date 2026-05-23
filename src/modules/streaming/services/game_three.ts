@@ -76,48 +76,59 @@ export function initThree(container: HTMLElement): void {
 }
 
 export function tick(): void {
-  console.log('[three] tick')
   if (!running || !renderer || !scene || !camera) return
+
   rafId = requestAnimationFrame(tick)
+
+  if (playerCameraNode) {
+    playerCameraNode.updateWorldMatrix(true, false)
+
+    camera.position.setFromMatrixPosition(
+      playerCameraNode.matrixWorld
+    )
+
+    camera.quaternion.setFromRotationMatrix(
+      playerCameraNode.matrixWorld
+    )
+  }
+
   renderer.render(scene, camera)
 }
 
 
+let playerRoot: THREE.Object3D | null = null
+let playerCameraNode: THREE.Object3D | null = null
+
 export async function loadLevel(): Promise<void> {
   if (!scene) return
 
-  // clear previous level
-  if (levelMesh) {
-    scene.remove(levelMesh)
-    levelMesh = null
+  const [level, player, mob, bat] = await Promise.all([
+    loadModel('/game_static/level.glb'),
+    loadModel('/game_static/player.glb'),
+    loadModel('/game_static/mob.glb'),
+    loadModel('/game_static/bat_model.glb'),
+  ])
+
+  // Add world
+  scene.add(level)
+
+  // Add player
+  playerRoot = player
+  scene.add(playerRoot)
+
+  // Find Godot camera node
+  playerCameraNode = player.getObjectByName('Camera3D')
+
+  if (!playerCameraNode) {
+    console.warn('[three] Camera3D not found in player.glb')
   }
-
-  // Load main level
-  const level = await loadModel('/game_static/level.glb')
-  levelMesh = level
-  scene.add(levelMesh)
-
-  // Load bat
-  const bat = await loadModel('/game_static/bat_model.glb')
-  bat.position.set(2, 0, 0)
-  scene.add(bat)
-
-  // Load mob
-  const mob = await loadModel('/game_static/mob.glb')
-  mob.position.set(5, 0, 0)
-  scene.add(mob)
-
-  // Load player
-  const player = await loadModel('/game_static/player.glb')
-  player.position.set(0, 0, 0)
-  scene.add(player)
 
   // Register nodes
   scene.traverse((child) => {
     if (child.name) nodeMap.set(child.name, child)
   })
 
-  console.log('[three] all models loaded')
+  console.log('[three] nodes:', [...nodeMap.keys()])
 }
 
 /**
