@@ -82,25 +82,42 @@ export function tick(): void {
   renderer.render(scene, camera)
 }
 
+
 export async function loadLevel(): Promise<void> {
   if (!scene) return
 
-  // Remove previous level if any
+  // clear previous level
   if (levelMesh) {
     scene.remove(levelMesh)
     levelMesh = null
   }
 
-  const group = await loadModel('/game_static/level.glb')
-  levelMesh = group
+  // Load main level
+  const level = await loadModel('/game_static/level.glb')
+  levelMesh = level
   scene.add(levelMesh)
 
-  // Register every named node so applyState can find them
-  levelMesh.traverse((child) => {
+  // Load bat
+  const bat = await loadModel('/game_static/bat_model.glb')
+  bat.position.set(2, 0, 0)
+  scene.add(bat)
+
+  // Load mob
+  const mob = await loadModel('/game_static/mob.glb')
+  mob.position.set(5, 0, 0)
+  scene.add(mob)
+
+  // Load player
+  const player = await loadModel('/game_static/player.glb')
+  player.position.set(0, 0, 0)
+  scene.add(player)
+
+  // Register nodes
+  scene.traverse((child) => {
     if (child.name) nodeMap.set(child.name, child)
   })
 
-  console.log('[three] level loaded, nodes registered:', [...nodeMap.keys()])
+  console.log('[three] all models loaded')
 }
 
 /**
