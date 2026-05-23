@@ -37,6 +37,8 @@ import apiClient from '@/shared/api/apiClient'
 import * as THREE from 'three'
 import { baseLogger } from '@/shared/config/logger'
 import { getRemoteConfig } from '@/shared/config/remoteConfig'
+import { assetLoader } from '../services/loader'
+// import { loadLevel } from '../services/loader'
 
 import { useAuthStore } from '@/modules/auth/store/authStore'
 import { featureFlags } from '@/shared/config/featureFlags'
@@ -173,6 +175,25 @@ function handleServerMessage(event) {
      case 'game_ready':
       // TODO: this is a temporary workaround to give the agent time to initialize the game before we send input. We should implement a more robust handshake in the future.
       
+
+
+  assetLoader.loadModel('/game_static/temporary_level.gltf')
+    .then((group) => {
+      if (levelScene) scene.remove(levelScene)
+      levelScene = group
+      scene.add(levelScene)
+
+      // auto-fit camera
+      const box = new THREE.Box3().setFromObject(levelScene)
+      const center = box.getCenter(new THREE.Vector3())
+      const size   = box.getSize(new THREE.Vector3())
+      const maxDim = Math.max(size.x, size.y, size.z)
+      camera.position.set(center.x, center.y + maxDim * 0.5, center.z + maxDim * 1.5)
+      camera.lookAt(center)
+    })
+    .catch(console.error)
+
+
       console.log('[ws] game_ready received — sending open_game in 4s')
       setTimeout(() => {
         loading.value = false
