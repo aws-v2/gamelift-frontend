@@ -50,7 +50,7 @@ const manifest = ref(null)
 const ws = ref(null)
 let renderer, scene, camera
 let levelScene = null
-
+const vmIp = ref('')
 // Synced Entities Map
 const entities = reactive(new Map()) // name -> { mesh, targetState, currentState }
 
@@ -152,23 +152,50 @@ function tick() {
 }
 
 
+// type GameMessage struct {
+//     Type      string          `json:"type"`
+//     SessionID string          `json:"session_id"`
+//     Data      json.RawMessage `json:"data,omitempty"`
+//     Reason    string          `json:"reason,omitempty"`
+//     // open_game fields
+//     VMIP   string `json:"vm_ip,omitempty"`
+//     VMPort int    `json:"vm_port,omitempty"`
+// }
 
 
 // --- Message Dispatcher ---
 function handleServerMessage(event) {
   try {
     const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
-
+    vmIp.value = msg.vm_ip || vmIp.value
     switch (msg.type) {
 
-      case 'game_ready':
-        console.log('[ws] game_ready received — sending play_game in 4s')
-        setTimeout(() => {
-          loading.value = false
-          sendMessage({ type: 'open_game', session_id: sessionId.value })
-          console.log('[ws] open_game sent')
-        }, 4000)
-        break
+     case 'game_ready':
+      // TODO: this is a temporary workaround to give the agent time to initialize the game before we send input. We should implement a more robust handshake in the future.
+      
+      console.log('[ws] game_ready received — sending open_game in 4s')
+      setTimeout(() => {
+        loading.value = false
+        sendMessage({
+          type: 'open_game',
+          session_id: sessionId.value,
+          vm_ip: "localhost",   // ← was missing
+          vm_port: 9031         // ← was missing
+        })
+        console.log('[ws] open_game sent')
+      }, 4000)
+  break
+
+
+
+
+   case 'game_running':
+      
+      console.log('[ws] game_ready received — sending open_game in 4s',event.data)
+      
+  break
+
+
 
       case 'game_state':
         handleGameState(msg.data ?? msg)  // works for both placeholder and Godot
@@ -195,6 +222,8 @@ function handleServerMessage(event) {
 
 // --- Game State (Godot position data) ---
 function handleGameState(data) {
+  // console.log(The data looks like this ${data.type, data.data})
+  console.log(`The state data looks like this: type=${data.type}, data=${JSON.stringify(data.data)}`)
   const nodeName = data.node || manifest.value?.player_node
   const entity = entities.get(nodeName)
 
@@ -275,10 +304,14 @@ onMounted(async () => {
     socket.addEventListener('open', () => {
       wsConnected.value = true
       loading.value = false
-      sendMessage({ type: 'open_game', session_id: sessionId.value, data: { gameId: route.params.id } })
+      sendMessage({ type: 'join', session_id: sessionId.value, data: { gameId: route.params.id } })
     })
+    
     socket.addEventListener('close', () => { wsConnected.value = false })
     socket.addEventListener('message', handleServerMessage)
+
+
+
 
   } catch (err) {
     console.error('[game] session init failed', err)
@@ -312,15 +345,26 @@ async function initGameSession() {
     return buildWsUrl(AgentWSURL, Token)
   }
 
+  const debug =true
+
+  // ── DEBUG SHORTCUT ──────────────────────────────────────────
+  if (debug) {
+    console.warn('[initGameSession] debug mode — skipping SSE, using local agent')
+     vmIp.value = 'localhost'
+    return buildWsUrl('ws://localhost:9030', Token, vmIp.value)
+
+  }
+  // ────────────────────────────────────────────────────────────
+
   console.log(`[initGameSession] pending — opening SSE for instanceId=${ID}`)
-
-
-
 
   const authStore = useAuthStore()
   const token = authStore.token
+
   // 3. Pending — wait for backend to push agent_url via SSE
   return new Promise((resolve, reject) => {
+    // resolve(buildWsUrl("ws://localhosct:9030", "", "10.0.8.10"))
+
     const sse = new EventSource(
       `${BACKEND_URL}gamelift/fleet/instances/${ID}/events?token=${token}`
     )
@@ -407,15 +451,12 @@ async function initGameSession() {
 
 }
 
-
-
-
 function buildWsUrl(wsUrl, token, vmIp) {
   const url = new URL(`${wsUrl}/game`)
-  url.searchParams.set('token', token)
-  url.searchParams.set('vm_ip', vmIp)
+  if (token) url.searchParams.set('token', token)
+  if (vmIp)  url.searchParams.set('vm_ip', vmIp)
   return url.toString()
-  // → ws://100.71.223.121:9030/game?token=...&vm_ip=10.0.6.12
+  // → ws://localhost:9030/game?token=...&vm_ip=10.0.1.12
 }
 
 
