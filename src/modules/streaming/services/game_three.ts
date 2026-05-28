@@ -144,34 +144,77 @@ export async function loadLevel(): Promise<void> {
  *   ]
  * }
  */
-export function applyState(data: GameStateData): void {
-  if (!camera || !scene) return
+// export function applyState(data: GameStateData): void {
+//   if (!camera || !scene) return
 
-  for (const node of data.nodes ?? []) {
-    // Camera3D drives the Three.js camera directly
-    if (node.id === 'Camera3D') {
-      if (node.pos) camera.position.set(...node.pos)
-      if (node.rot) camera.quaternion.set(...node.rot)
-      if (node.fov) {
-        camera.fov = node.fov
-        camera.updateProjectionMatrix()
-      }
-      continue
-    }
+//   for (const node of data.nodes ?? []) {
+//     // Camera3D drives the Three.js camera directly
+//     if (node.id === 'Camera3D') {
+//       if (node.pos) camera.position.set(...node.pos)
+//       if (node.rot) camera.quaternion.set(...node.rot)
+//       if (node.fov) {
+//         camera.fov = node.fov
+//         camera.updateProjectionMatrix()
+//       }
+//       continue
+//     }
 
-    // All other nodes: look up in the registry and apply transform
-    const obj = nodeMap.get(node.id)
-    if (!obj) continue
+//     // All other nodes: look up in the registry and apply transform
+//     const obj = nodeMap.get(node.id)
+//     if (!obj) continue
 
-    if (node.pos) obj.position.set(...node.pos)
-    if (node.rot) obj.quaternion.set(...node.rot)
+//     if (node.pos) obj.position.set(...node.pos)
+//     if (node.rot) obj.quaternion.set(...node.rot)
 
-    // Material swap (e.g. wall colour change)
-    if (node.material?.color && obj instanceof THREE.Mesh) {
-      const mat = obj.material as THREE.MeshStandardMaterial
-      mat.color.set(node.material.color)
-    }
+//     // Material swap (e.g. wall colour change)
+//     if (node.material?.color && obj instanceof THREE.Mesh) {
+//       const mat = obj.material as THREE.MeshStandardMaterial
+//       mat.color.set(node.material.color)
+//     }
+//   }
+// }
+
+
+/**
+ * Called for every game_state message from Godot.
+ * data = { node, x, y, z, yaw, pitch, vx, vy, vz, on_floor }
+ */
+export function applyState(data: GodotStateData): void {
+  if (!scene) return
+
+  // ── Move the player root ──────────────────────────────────────────────────
+  if (playerRoot) {
+    if (typeof data.x   === 'number') playerRoot.position.x = data.x
+    if (typeof data.y   === 'number') playerRoot.position.y = data.y
+    if (typeof data.z   === 'number') playerRoot.position.z = data.z
+    if (typeof data.yaw === 'number') playerRoot.rotation.y = data.yaw
   }
+
+  // ── Tilt the camera node for pitch ───────────────────────────────────────
+  if (playerCameraNode && typeof data.pitch === 'number') {
+    playerCameraNode.rotation.x = data.pitch
+  }
+
+  // ── Sync Three.js camera to wherever the camera node is in world space ───
+  if (camera && playerCameraNode) {
+    playerCameraNode.updateWorldMatrix(true, false)
+    camera.position.setFromMatrixPosition(playerCameraNode.matrixWorld)
+    camera.quaternion.setFromRotationMatrix(playerCameraNode.matrixWorld)
+  }
+}
+
+// ─── types ───────────────────────────────────────────────────────────────────
+interface GodotStateData {
+  node    : string
+  x       : number
+  y       : number
+  z       : number
+  yaw     : number
+  pitch   : number
+  vx?     : number
+  vy?     : number
+  vz?     : number
+  on_floor?: boolean
 }
 
 export function destroyThree(): void {

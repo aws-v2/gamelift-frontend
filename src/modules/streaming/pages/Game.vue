@@ -38,7 +38,7 @@ import { baseLogger } from '@/shared/config/logger'
 import { getRemoteConfig } from '@/shared/config/remoteConfig'
 import {
   initThree,
-  loadLevel, tick,   // applyState,tick, destroyThree 
+  loadLevel, tick, applyState, destroyThree
 } from '@/modules/streaming/services/game_three'
 
 import { useAuthStore } from '@/modules/auth/store/authStore'
@@ -136,20 +136,22 @@ async function handleServerMessage(event) {
 
 // --- Game State (Godot position data) ---
 function handleGameState(data) {
-  // console.log(The data looks like this ${data.type, data.data})
-  console.log(`The state data looks like this: type=${data.type}, data=${JSON.stringify(data.data)}`)
-  const nodeName = data.node || manifest.value?.player_node
-  const entity = entities.get(nodeName)
+  console.log('[game_state]', data)
 
+  // ── Apply to Three.js scene ───────────────────────────────────────────────
+  applyState(data)
+
+  // ── Also keep entity map in sync if you use it elsewhere ─────────────────
+  const nodeName = data.node
+  const entity   = entities.get(nodeName)
   if (entity) {
-    if (typeof data.x === 'number') entity.target.x = data.x
-    if (typeof data.y === 'number') entity.target.y = data.y
-    if (typeof data.z === 'number') entity.target.z = data.z
-    if (typeof data.yaw === 'number') entity.target.yaw = data.yaw
+    if (typeof data.x     === 'number') entity.target.x     = data.x
+    if (typeof data.y     === 'number') entity.target.y     = data.y
+    if (typeof data.z     === 'number') entity.target.z     = data.z
+    if (typeof data.yaw   === 'number') entity.target.yaw   = data.yaw
     if (typeof data.pitch === 'number') entity.target.pitch = data.pitch
   }
 }
-
 
 
 
@@ -209,11 +211,12 @@ onMounted(async () => {
   } else {
     console.error('Cannot call initThree: invalid container')
   }
-
+ await loadLevel()
 tick()
 
+
 try {
-  const wsUrl = await initGameSession()
+  const wsUrl= await initGameSession()
 
   const socket = connectWebSocket(wsUrl)
   socket.addEventListener('open', () => {
@@ -253,19 +256,20 @@ async function initGameSession() {
   const BACKEND_URL = await featureFlags.getServiceUrl('gamelift')
 
   // 1. Provision VM
-  const res = await apiClient.post(`/gamelift/games/${gameId}/session`, {
+    const res = await apiClient.post(`/gamelift/games/${gameId}/session`, {
+  // const res = await apiClient.post(`/gamelift/games/session?game_id=${gameId}`, {
     game_id: gameId,
     game_image: "string"
   })
 
-  const { AgentWSURL, Token, ID } = res.data
+  const { AgentWSURL, Token, ID,  } = res.data
   sessionId.value = ID
 
   if (AgentWSURL) {
     return buildWsUrl(AgentWSURL, Token, vmIp.value)
   }
 
-  const debug = true
+  const debug = false
 
   // ── DEBUG SHORTCUT ──────────────────────────────────────────
   if (debug) {
@@ -320,7 +324,7 @@ async function initGameSession() {
         console.log(`[SSE] agent_url received: ${data.agent_url}`)
         resolved = true
         cleanup()
-        resolve(buildWsUrl(data.agent_url, Token, data.vm_ip))
+        resolve(buildWsUrl(data.agent_url, Token, data.vm_ip, ID))
         return
       }
       // UNKNOWN EVENT
@@ -342,10 +346,11 @@ async function initGameSession() {
 
 }
 
-function buildWsUrl(wsUrl, token, vmIp) {
+function buildWsUrl(wsUrl, token, vmIp,sessionID) {
   const url = new URL(`${wsUrl}/game`)
   if (token) url.searchParams.set('token', token)
   if (vmIp) url.searchParams.set('vm_ip', vmIp)
+  if (sessionID) url.searchParams.set('session', sessionID)
   return url.toString()
   // → ws://localhost:9030/game?token=...&vm_ip=10.0.1.12
 }
