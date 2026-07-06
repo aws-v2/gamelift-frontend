@@ -1,0 +1,31 @@
+:root {
+  /* Brand Core - AWS Inspired */
+  --aws-orange: #ff9900;
+  --aws-orange-hover: #ec7211;
+  --aws-navy: #232f3e;
+  --aws-navy-light: #414750;
+  --aws-white: #ffffff;
+  --aws-offwhite: #f2f3f3;
+  
+  /* UI Colors */
+  --color-primary: var(--aws-orange);
+  --color-secondary: var(--aws-navy);
+  --text-primary: #16191f;
+  --text-secondary: #545b64;
+  --text-inverse: #ffffff;
+  
+  /* Borders & Surfaces */
+  --border-subtle: #eaeded;
+  --border-strong: #a0a0a0;
+  --bg-surface: #ffffff;
+  --bg-accent: #fafafa;
+
+  /* Form & Interactive */
+  --input-bg: #ffffff;
+  --input-border: #879196;
+  --focus-ring: #0073bb;
+
+  /* Radius & Shadows (FLAT) */
+  --radius-none: 0px;
+  --shadow-none: none;
+}

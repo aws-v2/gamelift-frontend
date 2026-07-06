@@ -49,7 +49,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: qarani/gamelift-frontend-server:prod
+          tags: |
+            qarani/gamelift-frontend-server:prod-${{ github.sha }}
+            qarani/gamelift-frontend-server:prod
           build-args: |
             VITE_APP_PROFILE=prod
 
@@ -75,7 +77,7 @@ jobs:
           passphrase:
           script: |
             docker network create --attachable --driver overlay aws-prod-network  || true
-            docker pull qarani/gamelift-frontend-server:prod
+            docker pull qarani/gamelift-frontend-server:prod-${{ github.sha }}
             docker service rm gamelift-frontend-server-prod || true
 
             docker service create \
@@ -86,5 +88,5 @@ jobs:
               --env API_GATEWAY_HOST=api-gateway-prod \
               --publish published=5174,target=80 \
               --replicas 1 \
-              qarani/gamelift-frontend-server:prod
+              qarani/gamelift-frontend-server:prod-${{ github.sha }}
 
