@@ -64,6 +64,10 @@ const keysPressed = {}
 
 console.log('ref function:', ref)
 console.log('ref(null):', ref(null))
+
+
+
+
 function onWindowResize() {
   logger.info("Window size event listener triggered")
 
@@ -80,35 +84,20 @@ function onWindowResize() {
 
 
 
-function onMouseDown(e: MouseEvent) {
-  sendMessage({
-    type: 'game_input',
-    session_id: sessionId.value,
-    data: { type: 'mousedown', button: e.button, target_node: 'Player' },
-  })
-}
-
-function onMouseUp(e: MouseEvent) {
-  sendMessage({
-    type: 'game_input',
-    session_id: sessionId.value,
-    data: { type: 'mouseup', button: e.button, target_node: 'Player' },
-  })
-}
 
 // --- Message Dispatcher ---
 async function handleServerMessage(event) {
   try {
-    const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+    const msg = typeof (event.data) === 'string' ? JSON.parse(event.data) : event.data
     vmIp.value = msg.vm_ip || vmIp.value
     switch (msg.type) {
 
       case 'game_ready':
-        console.log('[ws] game_ready — loading level then opening game')
+        console.log('[ws] vm provisioned:: game_ready — loading level then opening game')
         await loadLevel()
         setTimeout(() => {
           loading.value = false
-          sendMessage({ type: 'open_game', session_id: sessionId.value, vm_ip: 'localhost', vm_port: 9031 })
+          sendMessage({ type: 'open_game', session_id: sessionId.value, vm_ip: 'localhost', vm_port: 9030 })
           console.log('[ws] open_game sent')
         }, 4000)
         break
@@ -143,6 +132,7 @@ function handleGameState(data) {
 
   // ── Also keep entity map in sync if you use it elsewhere ─────────────────
   const nodeName = data.node
+
   const entity   = entities.get(nodeName)
   if (entity) {
     if (typeof data.x     === 'number') entity.target.x     = data.x
@@ -173,6 +163,24 @@ const onKeyUp = (e) => {
     data: { type: 'keyup', key: e.key }
   })
 }
+function onMouseDown(e: MouseEvent) {
+  sendMessage({
+    type: 'game_input',
+    session_id: sessionId.value,
+    data: { type: 'mousedown', button: e.button, target_node: 'Player' },
+  })
+}
+
+function onMouseUp(e: MouseEvent) {
+  sendMessage({
+    type: 'game_input',
+    session_id: sessionId.value,
+    data: { type: 'mouseup', button: e.button, target_node: 'Player' },
+  })
+}
+
+
+
 
 function goBack() { cleanup(); router.push('/home') }
 
@@ -191,9 +199,9 @@ onMounted(async () => {
   console.log('typeof threeContainer:', typeof threeContainer)
 
   // Only try .value if it looks like a ref
-  if (threeContainer1 && typeof threeContainer1 === 'object') {
-    console.log('threeContainer.value:', threeContainer1.value)
-    console.log('value type:', typeof threeContainer1.value)
+  if (threeContainer && typeof threeContainer=== 'object') {
+    console.log('threeContainer.value:', threeContainer.value)
+    console.log('value type:', typeof threeContainer.value)
   } else {
   }
 
@@ -300,7 +308,14 @@ async function initGameSession() {
       cleanup()
       reject(new Error('Provisioning timed out'))
     }, 5 * 60 * 1000)
+
+
+
     sse.onopen = () => { }
+
+
+
+    
     sse.onmessage = (event) => {
       let data
       try {

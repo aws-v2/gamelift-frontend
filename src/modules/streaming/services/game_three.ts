@@ -21,6 +21,7 @@ let levelMesh: THREE.Group         | null = null
 let rafId    : number              = 0
 let running  = false
 
+
 // node registry — Godot node id → Three.js Object3D
 // populated when models are loaded, updated every game_state tick
 const nodeMap = new Map<string, THREE.Object3D>()
@@ -75,6 +76,13 @@ export function initThree(container: HTMLElement): void {
   console.log('[three] initialized')
 }
 
+
+
+
+
+
+
+
 export function tick(): void {
   if (!running || !renderer || !scene || !camera) return
 
@@ -118,6 +126,7 @@ export async function loadLevel(): Promise<void> {
 
   // Find Godot camera node
   playerCameraNode = player.getObjectByName('Camera3D')
+
 
   if (!playerCameraNode) {
     console.warn('[three] Camera3D not found in player.glb')
